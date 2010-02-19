@@ -21,7 +21,7 @@ public class fotos{
     {
        	try{
 	    // Se crea un socket 
-	    SocketCliente = new Socket(maquina,39141);
+	    SocketCliente = new Socket(maquina,puerto);
 	    mensaje = null;
 	    salida = new ObjectOutputStream(SocketCliente.getOutputStream()); 
 	    salida.flush();
@@ -30,31 +30,14 @@ public class fotos{
 		    /* Se obtiene el comando a ejecutar */
 		    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		    mensaje = br.readLine();
+		    if (mensaje.equalsIgnoreCase("q"))
+			mensaje = "bye";
 		    sendMessage(mensaje);
 		}
 		catch(Exception e){
 		    e.printStackTrace();
 		}
-	    } while (!mensaje.equalsIgnoreCase("q"));
-	    
-
-	    //2. get Input and Output streams
-	   
-	   
-	    //entrada = new ObjectInputStream(SocketCliente.getInputStream());
-	    //3: Communicating with the server
-		//	    do{
-		//try{
-		//  mensaje = (String)entrada.readObject();
-		//  System.out.println("server>" + mensaje);
-		//  sendMessage("Hi my server");
-		//  mensaje = "bye";
-		//  sendMessage(mensaje);
-		//}
-		//catch(ClassNotFoundException classNot){
-		//    System.err.println("data received in unknown format");
-		//}
-		//}while(!mensaje.equals("bye"));
+	    } while (!mensaje.equalsIgnoreCase("bye"));
 	}
 	catch(UnknownHostException unknownHost){
 	    System.err.println("Se esta tratado de conectar a un servidor desconocido, verifiquelo!");

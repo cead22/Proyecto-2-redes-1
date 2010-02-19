@@ -23,7 +23,45 @@ public class nodo {
 	    ioException.printStackTrace();
 	}
     }
+    
+    public String cadena(String arr[]) {
+	String res = "";
+	for (int i = 0; i < arr.length; i++){
+	    res += arr[i] + ",";
+	}
+	return res;
+    }
 
+    private int verificar_comando(String comando) {
+	String cmd[] = comando.split("[\\s]+");
+	if (cmd[0].equalsIgnoreCase("C") && cmd.length == 3){
+	    if (cmd[1].equalsIgnoreCase("-t")){
+		System.out.println("DFS titulo");
+		return 0;
+	    }
+	    else if (cmd[1].equalsIgnoreCase("-k")){
+		System.out.println("DFS clave");
+		return 0;
+	    }
+	    else return -1;
+	}
+	else if (cmd[0].equalsIgnoreCase("D") && cmd.length == 2 && cmd[1].matches("[\\S]+[:][\\S]+")){
+	    String aux[] = cmd[1].split(":");
+	    String servidor = aux[0];
+	    String archivo = aux[1];
+	    System.out.println("Solicitud de foto " + archivo + " a servidor " + servidor);
+	    return 0;
+	}
+	else if (cmd[0].equalsIgnoreCase("A") && cmd.length == 1){
+	    System.out.println("Num vecinos");
+	    return 0;
+	}
+	else if (cmd[0].equalsIgnoreCase("Q") && cmd.length == 1){
+	    return 1;
+	}
+	else return -1;
+    }
+	
     public void run(int puerto, String maquinas, String log,  String directorio){
 	try{
 	    String cliente;
@@ -53,9 +91,30 @@ public class nodo {
 	    do{
 		try{
 		    mensaje = (String)in.readObject();
-		    System.out.println("client>" + mensaje);
 		    if (mensaje.equals("bye"))
-			enviar("bye");
+			break;
+		    System.out.println("client>" + mensaje);
+		    
+		    switch(verificar_comando(mensaje)) {
+		    case -1:
+			enviar("Comando invalido");
+			mensaje = ""; // para evitar que coincida con bye
+			break;
+		    case 1:
+			mensaje = "bye"; // para que salga el servidor
+			enviar(mensaje); // para que salga el cliente
+			break;
+		    default:
+			break;
+		    }
+		    /*
+		    for (int k = 0; k < comando.length; k++){
+			System.out.println(comando[k]);
+		    }
+		    */
+		   
+		    //System.out.println(cadena(comando));
+
 		}
 		catch(IOException ioe){
 		    System.err.println("I/O ERROR: " + ioe.getMessage());
