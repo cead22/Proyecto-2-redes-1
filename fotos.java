@@ -2,10 +2,10 @@ import java.io.*;
 import java.net.*;
 
 public class fotos{
-    Socket requestSocket;
-    ObjectOutputStream out;
-    ObjectInputStream in;
-    String message;
+    Socket SocketCliente;
+    ObjectOutputStream salida;
+    ObjectInputStream entrada;
+    String mensaje;
     int puerto;
     String maquina;
     fotos(int port,String maq){
@@ -16,25 +16,25 @@ public class fotos{
     {
 	try{
 	    //1. creating a socket to connect to the server
-	    requestSocket = new Socket(maquina, puerto);
+	    SocketCliente = new Socket(maquina, puerto);
 	    System.out.println("Conectado a: " +  maquina + "a traves del puerto: " + puerto );
 	    //2. get Input and Output streams
-	    out = new ObjectOutputStream(requestSocket.getOutputStream());
-	    out.flush();
-	    in = new ObjectInputStream(requestSocket.getInputStream());
+	    salida = new ObjectOutputStream(SocketCliente.getOutputStream());
+	    salida.flush();
+	    entrada = new ObjectInputStream(SocketCliente.getInputStream());
 	    //3: Communicating with the server
 	    do{
 		try{
-		    message = (String)in.readObject();
-		    System.out.println("server>" + message);
+		    mensaje = (String)entrada.readObject();
+		    System.out.println("server>" + mensaje);
 		    sendMessage("Hi my server");
-		    message = "bye";
-		    sendMessage(message);
+		    mensaje = "bye";
+		    sendMessage(mensaje);
 		}
 		catch(ClassNotFoundException classNot){
 		    System.err.println("data received in unknown format");
 		}
-	    }while(!message.equals("bye"));
+	    }while(!mensaje.equals("bye"));
 	}
 	catch(UnknownHostException unknownHost){
 	    System.err.println("You are trying to connect to an unknown host!");
@@ -45,9 +45,9 @@ public class fotos{
 	finally{
 	    //4: Closing connection
 	    try{
-		in.close();
-		out.close();
-		requestSocket.close();
+		entrada.close();
+		salida.close();
+		SocketCliente.close();
 	    }
 	    catch(IOException ioException){
 		ioException.printStackTrace();
@@ -57,8 +57,8 @@ public class fotos{
     void sendMessage(String msg)
     {
 	try{
-	    out.writeObject(msg);
-	    out.flush();
+	    salida.writeObject(msg);
+	    salida.flush();
 	    System.out.println("client>" + msg);
 	}
 	catch(IOException ioException){
@@ -67,8 +67,8 @@ public class fotos{
     }
     public static void main(String args[])
     {
-	int puerto = Integer.valueOf(args[1]);
-	String maq = args[3];
+	int puerto = 0;
+	String maq = null;
 	
 	/* Revision de llamada */
 	if (args.length != 4) {
@@ -76,12 +76,22 @@ public class fotos{
 	    System.exit(-1);
 	}
 	if (args[0] == "-s"  && args[2] == "-p") {
-	    puerto = Integer.valueOf(args[1]);
+	    try {
+		puerto = Integer.valueOf(args[1]);
+	    }
+	    catch(NumberFormatException e) {
+		System.out.println("El puerto debe ser un entero entre 1025 y 65536");
+	    }
 	    maq = args[3];
 	}
 	else if (args[0] == "-p" && args[2] == "-s") {
-	    puerto = Integer.valueOf(args[1]);
-	    maq = args[3];
+	    try {
+		puerto = Integer.valueOf(args[3]);
+	    }
+	    catch(NumberFormatException e) {
+		System.out.println("El puerto debe ser un entero entre 1025 y 65536");
+	    }
+	    maq = args[1];
 	}
 	else {
 	    System.out.println("Uso: edolab -f <maquinas> -p <puertoRemote>\n");
