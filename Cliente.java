@@ -14,7 +14,7 @@ public class Cliente{
     {
 	try{
 	    //1. creating a socket to connect to the server
-	    requestSocket = new Socket("localhost", 39141);
+	    requestSocket = new Socket("localhost", puerto);
 	    System.out.println("Connected to localhost in port 2004");
 	    //2. get Input and Output streams
 	    out = new ObjectOutputStream(requestSocket.getOutputStream());

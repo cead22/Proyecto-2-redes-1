@@ -2,43 +2,54 @@ import java.io.*;
 import java.net.*;
 
 public class nodo {
-    private ServerSocket socket;
-    private Socket conexion = null;
+    private ServerSocket serversock;
+    private Socket socket = null;
     private ObjectOutputStream out;
     private ObjectInputStream in;
     private String mensaje;
     private int puerto;
-
-    public nodo(int p){
-	puerto = p;
+    
+    public nodo(){
+	//puerto = p;
     }
 
-    private void enviar (String msg)
-    {
+    private void enviar (String mensaje){
 	try{
-	    out.writeObject(msg);
+	    out.writeObject(mensaje);
 	    out.flush();
-	    System.out.println("server>" + msg);
+	    System.out.println("server>" + mensaje);
 	}
 	catch(IOException ioException){
 	    ioException.printStackTrace();
 	}
     }
 
-    public void run(){
+    public void run(int puerto, String maquinas, String log,  String directorio){
 	try{
-	    //1. creating a server socket
-	    socket = new ServerSocket(puerto, 10);
-	    //2. Wait for conexion
-	    System.out.println("Waiting for connection");
-	    conexion = socket.accept();
-	    System.out.println("Conexion received from " + conexion.getInetAddress().getHostName());
-	    //3. get Input and Output streams
-	    out = new ObjectOutputStream(conexion.getOutputStream());
+	    String cliente;
+
+	    // crear socket
+	    try {
+	    serversock = new ServerSocket(puerto, 10);
+	    }
+	    catch (BindException e) {
+		System.err.println("Puerto en uso, escoja otro");
+		System.exit(-1);
+	    }	  
+
+	    // aceptar conexion
+	    socket = serversock.accept();
+	    
+	    // nombre de cliente
+	    cliente = socket.getInetAddress().getHostName();
+
+	    // streams
+	    out = new ObjectOutputStream(socket.getOutputStream());
 	    out.flush();
-	    in = new ObjectInputStream(conexion.getInputStream());
+	    in = new ObjectInputStream(socket.getInputStream());
+
 	    enviar("Conexion successful");
-	    //4. The two parts communicate via the input and output streams
+
 	    do{
 		try{
 		    mensaje = (String)in.readObject();
@@ -46,24 +57,20 @@ public class nodo {
 		    if (mensaje.equals("bye"))
 			enviar("bye");
 		}
+		catch(IOException ioe){
+		    System.err.println("I/O ERROR: " + ioe.getMessage());
+		}
 		catch(ClassNotFoundException classnot){
 		    System.err.println("Data received in unknown format");
 		}
 	    }while(!mensaje.equals("bye"));
+
+	    in.close();
+	    out.close();
+	    serversock.close();
 	}
 	catch(IOException ioException){
 	    ioException.printStackTrace();
-	}
-	finally{
-	    //4: Closing conexion
-	    try{
-		in.close();
-		out.close();
-		socket.close();
-	    }
-	    catch(IOException ioException){
-		ioException.printStackTrace();
-	    }
 	}
     }
 
@@ -78,19 +85,19 @@ public class nodo {
     }
 
     public static void main(String args[]) {
-	
+    
 	int argc = args.length;
 	int puerto = 0;
 	String maquinas = null;
 	String traza = null;
 	String directorio = null;
 	boolean check[] = {false,false,false,false};
-
-	// Revisar llamada
+	
+	// Revision de parametros de  llamada
 	for (int i = 0; i < argc - 1; i += 2){
 	    if (args[i].equals("-p")){
 		try {
-		puerto = Integer.valueOf(args[i+1]);
+		    puerto = Integer.valueOf(args[i+1]);
 		}
 		catch(NumberFormatException e) {
 		    uso("El puerto debe ser un entero entre 1025 y 65536");
@@ -116,17 +123,12 @@ public class nodo {
 	    
 	}
 	if (!(check[0] && check[1] && check[2] && check[3])) uso();
-
+	// Fin revision de parametros de llamada
 	
-	System.out.println("puerto " + puerto);
-	System.out.println("maquinas " + maquinas);
-	System.out.println("traza " + traza);
-	System.out.println("directorio " + directorio);
-	uso();
-
-	nodo servidor = new nodo(39141);
+	nodo servidor = new nodo();
 	while(true){
-	    servidor.run();
+	    servidor.run(puerto, maquinas, traza, directorio);
 	}
     }
 }
+
