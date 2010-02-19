@@ -7,15 +7,17 @@ public class fotos{
     ObjectInputStream in;
     String message;
     int puerto;
-    fotos(int port){
+    String maquina;
+    fotos(int port,String maq){
 	puerto = port;
+	maquina = maq;
     }
     void run()
     {
 	try{
 	    //1. creating a socket to connect to the server
-	    requestSocket = new Socket("localhost", 39141);
-	    System.out.println("Connected to localhost in port 2004");
+	    requestSocket = new Socket(maquina, puerto);
+	    System.out.println("Conectado a: " +  maquina + "a traves del puerto: " + puerto );
 	    //2. get Input and Output streams
 	    out = new ObjectOutputStream(requestSocket.getOutputStream());
 	    out.flush();
@@ -65,25 +67,27 @@ public class fotos{
     }
     public static void main(String args[])
     {
-		int puerto;
-		String maq;
-		
-		/* Revision de llamada */
-		if (args.length() != 4) {
-			System.out.println("Uso: fotos -s <servidor> -p <puerto>");
-		}
-		if (args[0] == "-s"  && args[2] == "-p") {
-			puerto = Integer.valueOf(args[1]);
-			maq = args[3];
-		}
-		else if (args[0] == "-p" && args[2] == "-s") {
-			puerto = Integer.valueOf(args[2]);
-			maq = args[4];
-		}
-		else {
-			System.out.println("Uso: edolab -f <maquinas> -p <puertoRemote>\n");
-		}
-		fotos client = new fotos(puerto);
-		client.run();
+	int puerto = Integer.valueOf(args[1]);
+	String maq = args[3];
+	
+	/* Revision de llamada */
+	if (args.length != 4) {
+	    System.out.println("Uso: fotos -s <servidor> -p <puerto>");
+	    System.exit(-1);
+	}
+	if (args[0] == "-s"  && args[2] == "-p") {
+	    puerto = Integer.valueOf(args[1]);
+	    maq = args[3];
+	}
+	else if (args[0] == "-p" && args[2] == "-s") {
+	    puerto = Integer.valueOf(args[1]);
+	    maq = args[3];
+	}
+	else {
+	    System.out.println("Uso: edolab -f <maquinas> -p <puertoRemote>\n");
+	    System.exit(-1);
+	}
+	fotos client = new fotos(puerto,maq);
+	client.run();
     }
 }
