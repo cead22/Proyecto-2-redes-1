@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.util.*;
 
 public class nodo {
     private ServerSocket serversock;
@@ -8,6 +9,8 @@ public class nodo {
     private ObjectInputStream in;
     private String mensaje;
     private int puerto;
+    Vector nodos_vec = new Vector();
+	
     
     public nodo(){
 	//puerto = p;
@@ -62,10 +65,49 @@ public class nodo {
 	else return -1;
     }
 	
+public static Vector Vecinos(String traza) {
+      File archivo = null;
+      FileReader fr = null;
+      BufferedReader br = null;
+      Vector ln= new Vector();
+      try {
+         // Apertura del fichero y creacion de BufferedReader para poder
+         // hacer una lectura comoda (disponer del metodo readLine()).
+         archivo = new File (traza);
+         fr = new FileReader (archivo);
+         br = new BufferedReader(fr);
+
+         // Lectura del fichero
+         String linea;
+         while((linea=br.readLine())!=null){
+	     ln.add(linea);
+	 }
+      }
+      catch(FileNotFoundException e){
+         System.err.println("El archivo "+ traza+" no existe.");
+      }
+      catch (Exception e){
+ 	e.printStackTrace();
+      }
+	finally{
+          try{                    
+            if( null != fr ){   
+               fr.close();     
+            }                  
+         }catch (Exception e2){ 
+            e2.printStackTrace();
+         }
+      }
+      return ln;
+    }
+
     public void run(int puerto, String maquinas, String log,  String directorio){
 	try{
 	    String cliente;
-
+	    // Se obtienen los nodos vecinos.
+	    nodos_vec = Vecinos(maquinas);
+	    //System.out.println(nodos_vec);
+	
 	    // crear socket
 	    try {
 	    serversock = new ServerSocket(puerto, 10);
@@ -151,6 +193,7 @@ public class nodo {
 	String traza = null;
 	String directorio = null;
 	boolean check[] = {false,false,false,false};
+	String dir_Act = System.getProperty("user.dir");
 	
 	// Revision de parametros de  llamada
 	for (int i = 0; i < argc - 1; i += 2){
@@ -161,8 +204,9 @@ public class nodo {
 		catch(NumberFormatException e) {
 		    uso("El puerto debe ser un entero entre 1025 y 65536");
 		}
-		if (!(puerto > 1024 && puerto < 65536)) 
+		if (!(puerto > 1024 && puerto < 65536)) {
 		    uso("El puerto debe ser un entero entre 1025 y 65536");
+		}
 		check[0] = true;
 	    }
 	    else if (args[i].equals("-f")){
@@ -173,14 +217,13 @@ public class nodo {
 		traza = args[i+1];
 		check[2] = true;
 	    }
-	    
 	    else if (args[i].equals("-d")){
 		directorio = args[i+1];
 		check[3] = true;
 	    }    
 	    else uso();
-	    
 	}
+	traza = dir_Act + maquinas;
 	if (!(check[0] && check[1] && check[2] && check[3])) uso();
 	// Fin revision de parametros de llamada
 	
