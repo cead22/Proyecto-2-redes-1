@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import nanoxml.*;
 
 public class nodo {
     private ServerSocket serversock;
@@ -9,11 +10,11 @@ public class nodo {
     private ObjectInputStream in;
     private String mensaje;
     private int puerto;
-    Vector nodos_vec = new Vector();
+    String directorio;
+    Vector vecinos = new Vector();
 	
-    
-    public nodo(){
-	//puerto = p;
+    public nodo(String dir){
+	directorio = dir;
     }
 
     private void enviar (String mensaje){
@@ -38,12 +39,8 @@ public class nodo {
     private int verificar_comando(String comando) {
 	String cmd[] = comando.split("[\\s]+");
 	if (cmd[0].equalsIgnoreCase("C") && cmd.length == 3){
-	    if (cmd[1].equalsIgnoreCase("-t")){
-		System.out.println("DFS titulo");
-		return 0;
-	    }
-	    else if (cmd[1].equalsIgnoreCase("-k")){
-		System.out.println("DFS clave");
+	    if (cmd[1].equalsIgnoreCase("-t") || cmd[1].equalsIgnoreCase("-k")){
+		System.out.println("DFS param: busqueda");
 		return 0;
 	    }
 	    else return -1;
@@ -65,52 +62,52 @@ public class nodo {
 	else return -1;
     }
 	
-public static Vector Vecinos(String traza) {
-      File archivo = null;
-      FileReader fr = null;
-      BufferedReader br = null;
-      Vector ln= new Vector();
-      try {
-         // Apertura del fichero y creacion de BufferedReader para poder
-         // hacer una lectura comoda (disponer del metodo readLine()).
-         archivo = new File (traza);
-         fr = new FileReader (archivo);
-         br = new BufferedReader(fr);
-
-         // Lectura del fichero
-         String linea;
-         while((linea=br.readLine())!=null){
-	     ln.add(linea);
-	 }
-      }
-      catch(FileNotFoundException e){
-         System.err.println("El archivo "+ traza+" no existe.");
-      }
-      catch (Exception e){
- 	e.printStackTrace();
-      }
+    public static Vector Vecinos(String traza) {
+	File archivo = null;
+	FileReader fr = null;
+	BufferedReader br = null;
+	Vector ln = new Vector();
+	try {
+	    // Apertura del fichero y creacion de BufferedReader para poder
+	    // hacer una lectura comoda (disponer del metodo readLine()).
+	    archivo = new File (traza);
+	    fr = new FileReader (archivo);
+	    br = new BufferedReader(fr);
+	    
+	    // Lectura del fichero
+	    String linea;
+	    while((linea = br.readLine()) != null){
+		ln.addElement(linea);
+	    }
+	}
+	catch(FileNotFoundException e){
+	    System.err.println("El archivo "+ traza+" no existe.");
+	}
+	catch (Exception e){
+	    e.printStackTrace();
+	}
 	finally{
-          try{                    
-            if( null != fr ){   
-               fr.close();     
-            }                  
-         }catch (Exception e2){ 
-            e2.printStackTrace();
-         }
-      }
-      return ln;
+	    try{                    
+		if(null != fr){   
+		    fr.close();     
+		}                  
+	    }catch (Exception e2){ 
+		e2.printStackTrace();
+	    }
+	}
+	return ln;
     }
-
-    public void run(int puerto, String maquinas, String log,  String directorio){
+    
+    public void run(int puerto, String maquinas, String log){
 	try{
 	    String cliente;
 	    // Se obtienen los nodos vecinos.
-	    nodos_vec = Vecinos(maquinas);
+	    vecinos = Vecinos(maquinas);
 	    //System.out.println(nodos_vec);
 	
 	    // crear socket
 	    try {
-	    serversock = new ServerSocket(puerto, 10);
+		serversock = new ServerSocket(puerto, 10);
 	    }
 	    catch (BindException e) {
 		System.err.println("Puerto en uso, escoja otro");
@@ -184,8 +181,54 @@ public static Vector Vecinos(String traza) {
 	System.out.println("Uso: nodo -p <puerto> -f <maquinas> -l <archivoTrazas> -d <directorio>");
 	System.exit(-1);
     }
+    
+    public void dfs_distribuido (String busqueda, Vector visitados, Vector resultados){	
+	File archivo = new File(".");
+	String[] xml = archivo.list(new explorador(".java"));	
 
-    public static void main(String args[]) {
+    } 
+
+    public boolean match (String archivo, String busqueda) {
+
+	XMLElement xml = new XMLElement();
+	FileReader reader = null;
+	Vector children = null;
+	String nombre_elem;
+	String contenido_elem;
+	String tipo_busqueda = (busqueda.split("[\\s]+"))[0];
+	String cadena = (busqueda.split("[\\s]+"))[1];
+
+	try {
+	    reader = new FileReader(archivo);
+	    xml.parseFromReader(reader);
+	    children = xml.getChildren();
+	}
+	catch (IOException e) {
+	    System.err.println(e.getMessage());
+	}
+	
+	System.out.println("tipo busqueda: "+tipo_busqueda+"\ncadena: "+cadena);
+	
+	if (tipo_busqueda.equalsIgnoreCase("-t")){
+	    System.out.println(children.size());
+	    for (int i = 0; i < children.size(); i++){
+		nombre_elem = ((XMLElement)children.elementAt(i)).getName();
+		System.out.println("nombre_elem: "+ nombre_elem);
+		if (nombre_elem.equals("titulo")) {
+		    contenido_elem = ((XMLElement)children.elementAt(i)).getContent();
+		    System.out.println("nombre elemento: " + nombre_elem + "\ncontenido elemento: " + contenido_elem);
+		    if (contenido_elem.matches(".*" + cadena + ".*"))
+			return true;
+		    return false;
+		}
+	    }
+	}
+	return false;
+
+
+    }
+
+    public static void main(String args[]) throws Exception {
     
 	int argc = args.length;
 	int puerto = 0;
@@ -227,9 +270,12 @@ public static Vector Vecinos(String traza) {
 	if (!(check[0] && check[1] && check[2] && check[3])) uso();
 	// Fin revision de parametros de llamada
 	
-	nodo servidor = new nodo();
+	nodo servidor = new nodo(directorio);
+
+	System.out.println(servidor.match("sol.xml", "-t sol"));
+
 	while(true){
-	    servidor.run(puerto, maquinas, traza, directorio);
+	    servidor.run(puerto, maquinas, traza);
 	}
     }
 }
