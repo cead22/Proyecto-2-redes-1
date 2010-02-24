@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.util.regex.*;
 import nanoxml.*;
 
 public class nodo {
@@ -11,8 +12,9 @@ public class nodo {
     private String mensaje;
     private int puerto;
     String directorio;
-    Vector vecinos = new Vector();
-	
+    Vector<String> nodos_vecinos = new Vector<String>();
+    String bus;
+
     public nodo(String dir){
 	directorio = dir;
     }
@@ -40,7 +42,8 @@ public class nodo {
 	String cmd[] = comando.split("[\\s]+");
 	if (cmd[0].equalsIgnoreCase("C") && cmd.length == 3){
 	    if (cmd[1].equalsIgnoreCase("-t") || cmd[1].equalsIgnoreCase("-k")){
-		System.out.println("DFS param: busqueda");
+		bus = cmd[1] + " " + cmd[2] ;
+		System.out.println(match("sol.xml", bus));
 		return 0;
 	    }
 	    else return -1;
@@ -62,11 +65,11 @@ public class nodo {
 	else return -1;
     }
 	
-    public static Vector Vecinos(String traza) {
+    public static Vector<String> Vecinos(String traza) {
 	File archivo = null;
 	FileReader fr = null;
 	BufferedReader br = null;
-	Vector ln = new Vector();
+	Vector <String> ln  = new Vector <String>();
 	try {
 	    // Apertura del fichero y creacion de BufferedReader para poder
 	    // hacer una lectura comoda (disponer del metodo readLine()).
@@ -102,10 +105,9 @@ public class nodo {
 	try{
 	    String cliente;
 	    // Se obtienen los nodos vecinos.
-	    vecinos = Vecinos(maquinas);
-	    //System.out.println(nodos_vec);
-	
-	    // crear socket
+	    nodos_vecinos = Vecinos(maquinas);
+	 
+	   // crear socket
 	    try {
 		serversock = new ServerSocket(puerto, 10);
 	    }
@@ -132,7 +134,7 @@ public class nodo {
 		    mensaje = (String)in.readObject();
 		    if (mensaje.equals("bye"))
 			break;
-		    System.out.println("client>" + mensaje);
+		    System.out.println(mensaje);
 		    
 		    switch(verificar_comando(mensaje)) {
 		    case -1:
@@ -146,14 +148,6 @@ public class nodo {
 		    default:
 			break;
 		    }
-		    /*
-		    for (int k = 0; k < comando.length; k++){
-			System.out.println(comando[k]);
-		    }
-		    */
-		   
-		    //System.out.println(cadena(comando));
-
 		}
 		catch(IOException ioe){
 		    System.err.println("I/O ERROR: " + ioe.getMessage());
@@ -197,7 +191,10 @@ public class nodo {
 	String contenido_elem;
 	String tipo_busqueda = (busqueda.split("[\\s]+"))[0];
 	String cadena = (busqueda.split("[\\s]+"))[1];
-
+	String atributo = null;
+	Pattern patron = Pattern.compile(cadena,Pattern.CASE_INSENSITIVE);
+	Matcher aux;
+	
 	try {
 	    reader = new FileReader(archivo);
 	    xml.parseFromReader(reader);
@@ -207,25 +204,44 @@ public class nodo {
 	    System.err.println(e.getMessage());
 	}
 	
-	System.out.println("tipo busqueda: "+tipo_busqueda+"\ncadena: "+cadena);
+	//System.out.println("tipo busqueda: "+tipo_busqueda+"\ncadena: "+cadena);
 	
-	if (tipo_busqueda.equalsIgnoreCase("-t")){
-	    System.out.println(children.size());
-	    for (int i = 0; i < children.size(); i++){
+	for (int i = 0; i < children.size(); i++){
+	    if (tipo_busqueda.equalsIgnoreCase("-t")){
+		/* Se obtiene el nombre del tag */
 		nombre_elem = ((XMLElement)children.elementAt(i)).getName();
-		System.out.println("nombre_elem: "+ nombre_elem);
+		//System.out.println("nombre_elem: "+ nombre_elem);
+		/* Verificacion que el tag sea titulo*/		
 		if (nombre_elem.equals("titulo")) {
+		    /* Se obtiene el contenido del tag titulo */
 		    contenido_elem = ((XMLElement)children.elementAt(i)).getContent();
-		    System.out.println("nombre elemento: " + nombre_elem + "\ncontenido elemento: " + contenido_elem);
-		    if (contenido_elem.matches(".*" + cadena + ".*"))
+		    aux = patron.matcher(contenido_elem);
+		    /* Se verifica si hay un substring con la cadena dada */
+		    if (aux.find()){
 			return true;
+		    }
 		    return false;
 		}
 	    }
-	}
+	    else if(tipo_busqueda.equalsIgnoreCase("-k")){
+		/* Se obtiene el nombre del tag */
+		nombre_elem = ((XMLElement)children.elementAt(i)).getName();
+		/* Se verifica que el tag sea autor */
+		if (nombre_elem.equals("palabrasClave")){
+		    /* */
+		    children = ((XMLElement)children.elementAt(i)).getChildren();
+		    for (int j = 0; j < children.size(); j++){
+			contenido_elem = (String)((XMLElement)children.elementAt(j)).getAttribute("palabra");
+			aux = patron.matcher(contenido_elem);
+			if (aux.find()){
+			    return true;
+			}
+		    }
+		    return false;
+		}
+	    }
+	} 
 	return false;
-
-
     }
 
     public static void main(String args[]) throws Exception {
@@ -271,8 +287,6 @@ public class nodo {
 	// Fin revision de parametros de llamada
 	
 	nodo servidor = new nodo(directorio);
-
-	System.out.println(servidor.match("sol.xml", "-t sol"));
 
 	while(true){
 	    servidor.run(puerto, maquinas, traza);
