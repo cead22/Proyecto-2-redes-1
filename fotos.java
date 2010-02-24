@@ -14,7 +14,6 @@ public class fotos{
     fotos(int port,String maq){
 	puerto = port;
 	maquina = maq;
-
     }
 
     public void run()
