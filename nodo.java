@@ -203,32 +203,31 @@ public class nodo {
 	catch (IOException e) {
 	    System.err.println(e.getMessage());
 	}
-	
-	//System.out.println("tipo busqueda: "+tipo_busqueda+"\ncadena: "+cadena);
-	
-	for (int i = 0; i < children.size(); i++){
-	    if (tipo_busqueda.equalsIgnoreCase("-t")){
+
+	if (tipo_busqueda.equalsIgnoreCase("-t")){	
+	    for (int i = 0; i < children.size(); i++){
 		/* Se obtiene el nombre del tag */
 		nombre_elem = ((XMLElement)children.elementAt(i)).getName();
-		//System.out.println("nombre_elem: "+ nombre_elem);
-		/* Verificacion que el tag sea titulo*/		
+		/* Verificacion que el tag sea titulo */		
 		if (nombre_elem.equals("titulo")) {
 		    /* Se obtiene el contenido del tag titulo */
 		    contenido_elem = ((XMLElement)children.elementAt(i)).getContent();
-		    aux = patron.matcher(contenido_elem);
 		    /* Se verifica si hay un substring con la cadena dada */
+		    aux = patron.matcher(contenido_elem);
 		    if (aux.find()){
 			return true;
 		    }
 		    return false;
 		}
 	    }
-	    else if(tipo_busqueda.equalsIgnoreCase("-k")){
+	}
+	else {
+	    for (int i = 0; i < children.size(); i++){
 		/* Se obtiene el nombre del tag */
 		nombre_elem = ((XMLElement)children.elementAt(i)).getName();
-		/* Se verifica que el tag sea autor */
+		/* Se verifica que el tag sea palabrasClave */
 		if (nombre_elem.equals("palabrasClave")){
-		    /* */
+		    /* Para c/entrada */
 		    children = ((XMLElement)children.elementAt(i)).getChildren();
 		    for (int j = 0; j < children.size(); j++){
 			contenido_elem = (String)((XMLElement)children.elementAt(j)).getAttribute("palabra");
@@ -241,7 +240,7 @@ public class nodo {
 		}
 	    }
 	} 
-	return false;
+	return false; // no necesario
     }
 
     public static void main(String args[]) throws Exception {
