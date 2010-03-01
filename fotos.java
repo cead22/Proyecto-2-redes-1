@@ -18,30 +18,47 @@ public class fotos{
 
     public void run()
     {
+	String con = null;
        	try{
 	    // Se crea un socket 
 	    SocketCliente = new Socket(maquina,puerto);
 	    mensaje = null;
-	    salida = new ObjectOutputStream(SocketCliente.getOutputStream()); 
+	    salida = new ObjectOutputStream(SocketCliente.getOutputStream());
+	    entrada = new ObjectInputStream(SocketCliente.getInputStream());
 	    salida.flush();
+	    con = (String)entrada.readObject();
+
+	    if (!con.equals("<exito/>")){
+		System.err.println("El servidor corriendo en " + puerto + " no es nodo");
+		System.exit(-1);
+	    }
+
 	    do {
 		try{
 		    /* Se obtiene el comando a ejecutar */
 		    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
 		    mensaje = br.readLine();
-		    if (mensaje.equalsIgnoreCase("q"))
-			mensaje = "bye";
-		    sendMessage(mensaje);
+		    if (mensaje.equalsIgnoreCase("q")) {
+			mensaje = "<bye/>";
+			sendMessage(mensaje);
+		    }
+		    else {
+			sendMessage(mensaje);
+			System.out.println((String)entrada.readObject());
+		    }
 		}
 		catch(Exception e){
 		    e.printStackTrace();
 		}
-	    } while (!mensaje.equalsIgnoreCase("bye"));
+	    } while (!mensaje.equalsIgnoreCase("<bye/>"));
 	}
 	catch(UnknownHostException unknownHost){
-	    System.err.println("Se esta tratado de conectar a un servidor desconocido, verifiquelo!");
+	    System.err.println("Nombre de servidor invalido");
 	}
 	catch(IOException ioException){
+	    ioException.printStackTrace();
+	}
+	catch(ClassNotFoundException ioException){
 	    ioException.printStackTrace();
 	}
 	finally{
@@ -65,9 +82,7 @@ public class fotos{
 	catch(IOException ioException){
 	    ioException.printStackTrace();
 	}
-	
     }
-
 
     public static void main(String args[]){
 	int puerto = 0;

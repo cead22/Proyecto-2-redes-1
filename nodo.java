@@ -15,8 +15,9 @@ public class nodo {
     Vector<String> nodos_vecinos;
     String bus;
 
-    public nodo(String dir){
+    public nodo(int p, String dir){
 	directorio = dir;
+	puerto = p;
 	socket = null;
     }
 
@@ -24,11 +25,21 @@ public class nodo {
 	try{
 	    out.writeObject(mensaje);
 	    out.flush();
-	    //	    System.out.println("server>" + mensaje);
 	}
-	catch(IOException ioException){
-	    ioException.printStackTrace();
+	catch(IOException e){
+	    e.printStackTrace();
 	}
+    }
+
+    private Object recibir (ObjectInputStream in){
+	Object o = null;
+	try{
+	    o = in.readObject();
+	}
+	catch(Exception e){
+	    e.printStackTrace();
+	}
+	return o;
     }
     
     public String cadena(String arr[]) {
@@ -41,27 +52,32 @@ public class nodo {
 
     private int verificar_comando(String comando) {
 	String cmd[] = comando.split("[\\s]+");
+	String aux[];
+	String servidor;
+	String archivo;
 
 	/* comunicacion fotos - nodo */
 	/* buscar fotos */
 	if (cmd[0].equalsIgnoreCase("C") && cmd.length == 3){
 	    if (cmd[1].equalsIgnoreCase("-t") || cmd[1].equalsIgnoreCase("-k")){
-		System.out.println(dfs_distribuido(cmd[1] + " " + cmd[2], new Vector<String>()));
+		//recibir(in);
+		dfs_distribuido(cmd[1] + " " + cmd[2], new Vector<String>());
+		//enviar(out,recibir(in));
 		return 0;
 	    }
 	    else return -1;
 	}
 	/* solicitar foto */
 	else if (cmd[0].equalsIgnoreCase("D") && cmd.length == 2 && cmd[1].matches("[\\S]+[:][\\S]+")){
-	    String aux[] = cmd[1].split(":");
-	    String servidor = aux[0];
-	    String archivo = aux[1];
+	    aux = cmd[1].split(":");
+	    servidor = aux[0];
+	    archivo = aux[1];
 	    System.out.println("Solicitud de foto " + archivo + " a servidor " + servidor);
 	    return 0;
 	}
 	/* obterner numero de vecinos */
 	else if (cmd[0].equalsIgnoreCase("A") && cmd.length == 1){
-	    System.out.println("Numero de Vecinos: " + nodos_vecinos.size());
+	    enviar(out, "Numero de Vecinos: " + nodos_vecinos.size());
 	    return 0;
 	}
 	/* salir */
@@ -75,19 +91,20 @@ public class nodo {
 	    String res = "";
 	    Vector<String> v = null;
 	    try {
-		v = (Vector<String>)in.readObject();
+		v = (Vector<String>)recibir(in);
 	    }
 	    catch (Exception e) {
 		System.out.println(e.getMessage());
 	    }
-	    res = dfs_distribuido(cmd[1] + " " + cmd[2],v);
+	    dfs_distribuido(cmd[1] + " " + cmd[2],v);
+	    //enviar(out,recibir(in));
 	    return 0;
 	}
 	else return -1;
 	/* fin comunicacion nodo - nodo */
     }
 	
-    public static Vector<String> Vecinos(String traza) {
+    public static Vector<String> Vecinos (String traza) {
 	File archivo = null;
 	FileReader fr = null;
 	BufferedReader br = null;
@@ -101,10 +118,13 @@ public class nodo {
 	    
 	    // Lectura del fichero
 	    String linea;
-	    while((linea = br.readLine()) != null){
+	    while((linea = br.readLine()) != null && !linea.equals("127.0.0.1") && !linea.equals("localhost")){
 		linea = InetAddress.getByName(linea).getHostAddress();
 		ln.addElement(linea);
 	    }
+	}
+	catch(EOFException e) {
+	    return ln;
 	}
 	catch(FileNotFoundException e){
 	    System.err.println("El archivo "+ traza+" no existe.");
@@ -150,12 +170,12 @@ public class nodo {
 	    out.flush();
 	    in = new ObjectInputStream(socket.getInputStream());
 
-	    enviar(out,"Conexion successful");
+	    enviar(out,"<exito/>");
 
 	    do{
-		try{
-		    mensaje = (String)in.readObject();
-		    if (mensaje.equals("bye"))
+		//try{
+		    mensaje = (String)recibir(in);
+		    if (mensaje.equals("<bye/>"))
 			break;
 		    System.out.println(mensaje);
 		    
@@ -165,20 +185,21 @@ public class nodo {
 			mensaje = ""; // para evitar que coincida con bye
 			break;
 		    case 1:
-			mensaje = "bye"; // para que salga el servidor
+			mensaje = "<bye/>"; // para que salga el servidor
 			enviar(out,mensaje); // para que salga el cliente
 			break;
 		    default:
+			//mensaje = "<bye/>";
 			break;
 		    }
-		}
-		catch(IOException ioe){
-		    System.err.println("I/O ERROR: " + ioe.getMessage());
-		}
-		catch(ClassNotFoundException classnot){
-		    System.err.println("Data received in unknown format");
-		}
-	    }while(!mensaje.equals("bye"));
+		    //	}
+	    //catch(IOException ioe){
+	    //	    System.err.println("I/O ERROR: " + ioe.getMessage());
+	    //}
+		//catch(ClassNotFoundException classnot){
+		//  System.err.println("Data received in unknown format");
+		//}
+	    }while(!mensaje.equals("<bye/>"));
 
 	    in.close();
 	    out.close();
@@ -199,11 +220,14 @@ public class nodo {
 	System.exit(-1);
     }
     
-    public String dfs_distribuido (String busqueda, Vector<String> visitados){
+    public void dfs_distribuido (String busqueda, Vector<String> visitados){
 
 	String resultado = "";
 	File archivo = new File(directorio);
 	String[] archivos_xml = archivo.list(new explorador(".xml"));
+	Socket sock = null;
+	ObjectOutputStream salida = null;
+	ObjectInputStream entrada = null;
 	
 	/* busqueda local */
 	for (int i = 0; i < archivos_xml.length; i++) {
@@ -211,28 +235,47 @@ public class nodo {
 		resultado = resultado + archivos_xml[i] + "\n";
 	    }
 	}
- 
+	try {
+	    System.out.println("0. Servidor: "+ InetAddress.getLocalHost().getHostName()+"\nresultado: " + resultado);
+	}
+	catch (Exception e){
+	    System.err.println("here1: " + e.getMessage());
+	}
 	/* marcar como visitado */
 	visitados.add(socket.getInetAddress().getHostAddress());
 
-	/* busqueda remota */
-	for (int i = 0; i < nodos_vecinos.size(); i++) {
+	System.out.println(nodos_vecinos);
 
-	    if (!visitados.contains(nodos_vecinos.elementAt(i))){
-		try {
-		    Socket sock = new Socket(nodos_vecinos.elementAt(i),puerto);
-		    ObjectOutputStream salida = new ObjectOutputStream(sock.getOutputStream());
-		    ObjectInputStream entrada = new ObjectInputStream(sock.getInputStream());
-		    enviar(salida,"B" + busqueda);
+	/* busqueda remota */
+	try {
+	    for (int i = 0; i < nodos_vecinos.size(); i++) {
+		if (!visitados.contains(nodos_vecinos.elementAt(i))){
+		    System.out.println("Visitados: " + visitados);
+		    sock = new Socket(nodos_vecinos.elementAt(i),puerto);
+		    salida = new ObjectOutputStream(sock.getOutputStream());
+		    entrada = new ObjectInputStream(sock.getInputStream());
+		    System.out.println("A: "+recibir(entrada));
+		    
+		    enviar(salida,"B " + busqueda);
 		    enviar(salida,visitados);
-		    resultado = (String)entrada.readObject();
-		}
-		catch (Exception e){
-		    System.err.println(e.getMessage());
+		    
+		    System.out.println("1. Servidor: "+ InetAddress.getLocalHost().getHostName()+"\nresultado: " + resultado);
+		    resultado = resultado + (String)entrada.readObject();
+		    System.out.println("2. Servidor: "+ InetAddress.getLocalHost().getHostName()+"\nresultado: " + resultado);
+		    enviar(salida,"<bye/>");
+		    salida.close();
+		    entrada.close();
+		    sock.close();
 		}
 	    }
-	} 
-	return resultado;
+	    
+	    enviar(out,resultado);
+	    
+	}
+	catch (Exception e){
+	    System.err.println("here: " + e.getMessage());
+	}
+	System.out.println("wasa");
     } 
 
     public boolean match (String archivo, String busqueda) {
@@ -297,9 +340,8 @@ public class nodo {
     }
 
     public static void main(String args[]) throws Exception {
-    
-	int argc = args.length;
 	int puerto = 0;
+	int argc = args.length;
 	String maquinas = null;
 	String traza = null;
 	String directorio = null;
@@ -338,7 +380,7 @@ public class nodo {
 	if (!(check[0] && check[1] && check[2] && check[3])) uso();
 	// Fin revision de parametros de llamada
 	
-	nodo servidor = new nodo(directorio);
+	nodo servidor = new nodo(puerto,directorio);
 	//	System.out.println(InetAddress.getByName("carlos"));
 
 	while(true){
