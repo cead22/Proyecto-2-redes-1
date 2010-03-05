@@ -219,9 +219,32 @@ public class nodo {
 	System.out.println("Uso: nodo -p <puerto> -f <maquinas> -l <archivoTrazas> -d <directorio>");
 	System.exit(-1);
     }
-    
-    public void dfs_distribuido (String busqueda, Vector<String> visitados){
 
+    private String mi_ip () {
+	Enumeration e1;
+	Enumeration e2;
+	NetworkInterface ni;
+	String ip;
+	try {
+	    e1 = NetworkInterface.getNetworkInterfaces();
+	    while(e1.hasMoreElements()) {
+		ni = (NetworkInterface) e1.nextElement();
+		e2 = ni.getInetAddresses();
+		while (e2.hasMoreElements()){
+		    ip = ((InetAddress) e2.nextElement()).getHostAddress();
+		    if (ip.matches("[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}.[0-9]{1,3}") && !ip.equals("127.0.0.1")) {
+			return ip;
+		    }
+		}
+	    }
+	}
+	catch (Exception e) {
+	    e.printStackTrace();
+	}
+	return "conexion nula";
+    }
+
+    public void dfs_distribuido (String busqueda, Vector<String> visitados){
 	String resultado = "";
 	File archivo = new File(directorio);
 	String[] archivos_xml = archivo.list(new explorador(".xml"));
@@ -235,6 +258,7 @@ public class nodo {
 		resultado = resultado + archivos_xml[i] + "\n";
 	    }
 	}
+	System.out.println(mi_ip());
 	try {
 	    System.out.println("0. Servidor: "+ InetAddress.getLocalHost().getHostName()+"\nresultado: " + resultado);
 	}
