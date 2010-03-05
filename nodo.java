@@ -251,11 +251,12 @@ public class nodo {
 	Socket sock = null;
 	ObjectOutputStream salida = null;
 	ObjectInputStream entrada = null;
+	String foto;
 	
 	/* busqueda local */
 	for (int i = 0; i < archivos_xml.length; i++) {
-	    if (match(archivos_xml[i], busqueda)){
-		resultado = resultado + archivos_xml[i] + "\n";
+	    if (!(foto = match(archivos_xml[i], busqueda)).equals("<no/>")){
+		resultado = resultado + "\n===\nArchivo: " + archivos_xml[i] + "\n" + foto + "\n";
 	    }
 	}
 	System.out.println(mi_ip());
@@ -302,7 +303,7 @@ public class nodo {
 	System.out.println("wasa");
     } 
 
-    public boolean match (String archivo, String busqueda) {
+    public String match (String archivo, String busqueda) {
 
 	XMLElement xml = new XMLElement();
 	FileReader reader = null;
@@ -312,6 +313,9 @@ public class nodo {
 	String tipo_busqueda = (busqueda.split("[\\s]+"))[0];
 	String cadena = (busqueda.split("[\\s]+"))[1];
 	String atributo = null;
+	String titulo;
+	String autor;
+	String descripcion;
 	Pattern patron = Pattern.compile(cadena,Pattern.CASE_INSENSITIVE);
 	Matcher aux;
 	
@@ -335,9 +339,12 @@ public class nodo {
 		    /* Se verifica si hay un substring con la cadena dada */
 		    aux = patron.matcher(contenido_elem);
 		    if (aux.find()){
-			return true;
+			titulo = "- Titulo: " + contenido_elem + "\n";
+			autor = "- Autor:\n\t" + ((XMLElement)children.elementAt(i+2)).getAttribute("name") + "\n";
+			descripcion = "- Descripcion:" + ((XMLElement)children.elementAt(i+3)).getContent() + "\n===";
+			return titulo + autor + descripcion;
 		    }
-		    return false;
+		    return "<no/>";
 		}
 	    }
 	}
@@ -353,14 +360,17 @@ public class nodo {
 			contenido_elem = (String)((XMLElement)children.elementAt(j)).getAttribute("palabra");
 			aux = patron.matcher(contenido_elem);
 			if (aux.find()){
-			    return true;
+			    titulo = "- Titulo: " + ((XMLElement)children.elementAt(i-4)).getContent() + "\n";
+			    autor = "- Autor:\n\t" + ((XMLElement)children.elementAt(i-3)).getAttribute("name") + "\n";
+			    descripcion = "- Descripcion:" + ((XMLElement)children.elementAt(i-1)).getContent() + "\n===";
+			    return titulo + autor + descripcion;
 			}
 		    }
-		    return false;
+		    return "<no/>";
 		}
 	    }
 	} 
-	return false; // no necesario si el xml esta bien hecho
+	return "<no/>"; // no necesario si el xml esta bien hecho
     }
 
     public static void main(String args[]) throws Exception {
