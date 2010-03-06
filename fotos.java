@@ -42,6 +42,11 @@ public class fotos{
 			mensaje = "<bye/>";
 			sendMessage(mensaje);
 		    }
+		    else if (mensaje.matches("[\\s]*[dD][\\s]*[\\S]+[:][\\S]+")) {
+			System.out.println("rec...");
+			sendMessage(mensaje);
+			recibir_archivo();
+		    }
 		    else {
 			sendMessage(mensaje);
 			System.out.println((String)entrada.readObject());
@@ -71,6 +76,37 @@ public class fotos{
 		ioException.printStackTrace();
 	    }
 	}
+    }
+
+    private void recibir_archivo() throws Exception {
+	int filesize=62789; // filesize temporary hardcoded
+       	long start = System.currentTimeMillis();
+	int bytesRead;
+	int current = 0;
+		
+	byte [] mybytearray  = new byte [filesize];
+	ObjectInputStream is = new ObjectInputStream(SocketCliente.getInputStream());
+	FileOutputStream fos = new FileOutputStream("./../twitter.png");
+	BufferedOutputStream bos = new BufferedOutputStream(fos);
+	bytesRead = is.read(mybytearray,0,mybytearray.length);
+	current = bytesRead;
+      	
+	do {
+
+	    bytesRead =
+		entrada.read(mybytearray, current, (mybytearray.length-current));
+	System.out.println(bytesRead);
+	    if(bytesRead >= 0) current += bytesRead;
+	} while(bytesRead > -1 && current < filesize);
+	
+
+	bos.write(mybytearray, 0 , current);
+	bos.flush();
+	long end = System.currentTimeMillis();
+	System.out.println(end-start);
+	bos.close();
+	System.out.println("done receiving");
+
     }
 
     void sendMessage(String msg)

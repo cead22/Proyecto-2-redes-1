@@ -73,6 +73,13 @@ public class nodo {
 	    servidor = aux[0];
 	    archivo = aux[1];
 	    System.out.println("Solicitud de foto " + archivo + " a servidor " + servidor);
+	    try {
+		enviar_archivo();
+	    }catch(Exception e) {
+		e.getMessage();
+		System.exit(-1);
+		e.printStackTrace();
+	    }
 	    return 0;
 	}
 	/* obterner numero de vecinos */
@@ -256,10 +263,9 @@ public class nodo {
 	/* busqueda local */
 	for (int i = 0; i < archivos_xml.length; i++) {
 	    if (!(foto = match(archivos_xml[i], busqueda)).equals("<no/>")){
-		resultado = resultado + "\n===\nArchivo: " + archivos_xml[i] + "\n" + foto + "\n";
+		resultado = resultado + "\n===\n+ Archivo: " + archivos_xml[i].substring(0,archivos_xml[i].length()-4) + "\n" + foto + "\n";
 	    }
 	}
-	System.out.println(mi_ip());
 	try {
 	    System.out.println("0. Servidor: "+ InetAddress.getLocalHost().getHostName()+"\nresultado: " + resultado);
 	}
@@ -267,7 +273,7 @@ public class nodo {
 	    System.err.println("here1: " + e.getMessage());
 	}
 	/* marcar como visitado */
-	visitados.add(socket.getInetAddress().getHostAddress());
+	visitados.add(mi_ip());
 
 	System.out.println(nodos_vecinos);
 
@@ -308,6 +314,7 @@ public class nodo {
 	XMLElement xml = new XMLElement();
 	FileReader reader = null;
 	Vector children = null;
+	Vector sub_children = null;
 	String nombre_elem;
 	String contenido_elem;
 	String tipo_busqueda = (busqueda.split("[\\s]+"))[0];
@@ -316,6 +323,7 @@ public class nodo {
 	String titulo;
 	String autor;
 	String descripcion;
+	String servidor;
 	Pattern patron = Pattern.compile(cadena,Pattern.CASE_INSENSITIVE);
 	Matcher aux;
 	
@@ -341,8 +349,9 @@ public class nodo {
 		    if (aux.find()){
 			titulo = "- Titulo: " + contenido_elem + "\n";
 			autor = "- Autor:\n\t" + ((XMLElement)children.elementAt(i+2)).getAttribute("name") + "\n";
-			descripcion = "- Descripcion:" + ((XMLElement)children.elementAt(i+3)).getContent() + "\n===";
-			return titulo + autor + descripcion;
+			descripcion = "- Descripcion:" + ((XMLElement)children.elementAt(i+3)).getContent() + "\n";
+			servidor = "- Servidor: \n\t" + mi_ip() + "\n===";
+			return titulo + autor + descripcion + servidor;
 		    }
 		    return "<no/>";
 		}
@@ -355,15 +364,16 @@ public class nodo {
 		/* Se verifica que el tag sea palabrasClave */
 		if (nombre_elem.equals("palabrasClave")){
 		    /* Para c/entrada */
-		    children = ((XMLElement)children.elementAt(i)).getChildren();
-		    for (int j = 0; j < children.size(); j++){
-			contenido_elem = (String)((XMLElement)children.elementAt(j)).getAttribute("palabra");
+		    sub_children = ((XMLElement)children.elementAt(i)).getChildren();
+		    for (int j = 0; j < sub_children.size(); j++){
+			contenido_elem = (String)((XMLElement)sub_children.elementAt(j)).getAttribute("palabra");
 			aux = patron.matcher(contenido_elem);
 			if (aux.find()){
-			    titulo = "- Titulo: " + ((XMLElement)children.elementAt(i-4)).getContent() + "\n";
-			    autor = "- Autor:\n\t" + ((XMLElement)children.elementAt(i-3)).getAttribute("name") + "\n";
+			    titulo = "- Titulo: " + ((XMLElement)children.elementAt(i-4)) + "\n";
+			    autor = "- Autor:\n\t" + ((XMLElement)children.elementAt(i-2)).getAttribute("name") + "\n";
 			    descripcion = "- Descripcion:" + ((XMLElement)children.elementAt(i-1)).getContent() + "\n===";
-			    return titulo + autor + descripcion;
+			    servidor = "- Servidor: \n\t" + mi_ip() + "\n===";
+			    return titulo + autor + descripcion + servidor;
 			}
 		    }
 		    return "<no/>";
@@ -373,8 +383,26 @@ public class nodo {
 	return "<no/>"; // no necesario si el xml esta bien hecho
     }
 
+    private void enviar_archivo() throws Exception{
+
+	// sendfile
+	File myFile = new File ("twitter.png");
+	byte [] mybytearray  = new byte [(int)myFile.length()];
+	FileInputStream fis = new FileInputStream(myFile);
+	BufferedInputStream bis = new BufferedInputStream(fis);
+	bis.read(mybytearray,0,mybytearray.length);
+	ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
+	System.out.println("Sending...");
+
+	os.write(mybytearray,0,mybytearray.length);
+	os.flush();
+	//os.close();
+	System.out.println("done sending");
+	
+    }
+
     public static void main(String args[]) throws Exception {
-	int puerto = 0;
+int puerto = 0;
 	int argc = args.length;
 	String maquinas = null;
 	String traza = null;
