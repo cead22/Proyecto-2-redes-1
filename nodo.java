@@ -252,7 +252,7 @@ public class nodo {
     public void run(int puerto, String maquinas, String log){
 	try{
 	    String cliente;
-	    BufferedWriter traza2 = new BufferedWriter(new FileWriter(log));
+	    BufferedWriter traza2 = new BufferedWriter(new FileWriter(log,true));
 	    
 	    // Se obtienen los nodos vecinos.
 	    nodos_vecinos = Vecinos(maquinas);
