@@ -1,5 +1,8 @@
 #!/bin/bash
-export CLASSPATH=./nano­xml­lite.jar:.
-# en el directorio /usr/bin esta instalado el OpenJDK
+ 
+export CLASSPATH=nanoxml.jar:.
+
 export PATH=$PATH:/usr/bin
-java fotos $*
+
+java Fotos $1 $2 $3 $4
+
