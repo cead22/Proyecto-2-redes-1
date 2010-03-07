@@ -385,7 +385,7 @@ public class nodo {
 		if (!visitados.contains(nodos_vecinos.elementAt(i))){
 		    //		    System.out.println("Visitados: " + visitados);
 		    try{
-			sock = new Socket(nodos_vecinos.elementAt(i),puerto);
+				sock = new Socket(nodos_vecinos.elementAt(i),puerto);
 		    }
 		    catch (Exception e){
 			System.err.println("No se pudo establecer conexion con: " + nodos_vecinos.elementAt(i));
@@ -393,7 +393,6 @@ public class nodo {
 			visitados.add(nodos_vecinos.elementAt(i));
 			// continuo con las demas conexiones
 			continue;
-			
 		    }
 		    salida = new ObjectOutputStream(sock.getOutputStream());
 		    entrada = new ObjectInputStream(sock.getInputStream());
