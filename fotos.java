@@ -2,6 +2,11 @@ import java.io.*;
 import java.net.*;
 
 
+/**
+ * Clase para representar el cliente que solicita las fotos
+ * @author Carlos Alvarez y Marion CArambula.
+ */
+
 public class fotos {
 
     /** Socket a traves de cual se 
