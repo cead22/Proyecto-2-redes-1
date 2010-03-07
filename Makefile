@@ -1,10 +1,10 @@
 all: nodo.class fotos.class explorador.class
  
-Nodo.class : nodo.java explorador.java
-	javac -classpath nanoxml.jar:. nodo.java
+nodo.class : nodo.java explorador.java
+	javac -classpath nanoxml-lite-2.2.3.jar:. nodo.java
  
-Fotos.class : fotos.java 
-	javac -classpath nanoxml.jar:. fotos.java
+fotos.class : fotos.java 
+	javac -classpath nanoxml-lite-2.2.3.jar:. fotos.java
  
 explorador.class : explorador.java
-	javac -classpath nanoxml.jar:. explorador.java
+	javac -classpath nanoxml-lite-2.2.3.jar:. explorador.java
