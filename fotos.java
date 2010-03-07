@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.*;
 
+
 public class fotos {
 
     /** Socket a traves de cual se 
@@ -49,31 +50,36 @@ public class fotos {
 	String con = null;
 	String [] cmd;
 	BufferedReader br;
+	Boolean b;
        	try{
-
 	    SocketCliente = new Socket(maquina,puerto);
+	    /*Se habilita el time out para esperar mensaje del servidor*/
+	    SocketCliente.setSoTimeout(10);
 	    mensaje = null;
 	    salida = new ObjectOutputStream(SocketCliente.getOutputStream());
 	    entrada = new ObjectInputStream(SocketCliente.getInputStream());
 	    salida.flush();
 	    con = (String)entrada.readObject();
-
 	    if (!con.equals("<exito/>")){
-		System.err.println("El servidor corriendo en " + puerto + " no es nodo");
+		System.err.println("El servidor corriendo en " + puerto + " no es nodo. Verifique el puerto");
 		System.exit(-1);
 	    }
-
+	    /*Se deshabilita el time out*/
+	    SocketCliente.setSoTimeout(0);
+	    System.out.println("Conexion establecida con el servidor");
 	    do {
 		try{
 		    /* Se obtiene el comando a ejecutar */
 		    br = new BufferedReader(new InputStreamReader(System.in));
 		    mensaje = br.readLine();
+		    /* Se verifica comando de salida */
 		    if (mensaje.equalsIgnoreCase("q")) {
 			mensaje = "<bye/>";
 			sendMessage(mensaje);
 		    }
+		    /*Se verifica que el comando sea solicitud de foto */
 		    else if (mensaje.matches("[\\s]*[dD][\\s]*[\\S]+[:][\\S]+")) {
-			System.out.println("rec...");
+			System.out.println("Recibiendo foto");
 			sendMessage(mensaje);
 			cmd = mensaje.split(":");
 			recibir_archivo(cmd[0].split(" ")[1],cmd[cmd.length-1]);
@@ -95,10 +101,12 @@ public class fotos {
 	    SocketCliente.close();
 	}
 	catch(UnknownHostException unknownHost){
-	    System.err.println("Nombre de servidor invalido");
+	    System.err.println("Nombre de servidor invalido.");
+	    System.exit(-1);
 	}
 	catch(IOException ioException){
-	    ioException.printStackTrace();
+	    System.err.println("No se pudo establecer conexion con el servidor");
+	    System.exit(-1);
 	}
 	catch(ClassNotFoundException ioException){
 	    ioException.printStackTrace();
@@ -150,8 +158,14 @@ public class fotos {
 	System.out.println("done receiving");
     }
 
-    void sendMessage(String msg)
-    {
+
+    /**
+     * Envia un mensaje determinado a traves de un canal de salida
+     * especificado.
+     * @param mensaje mensaje a enviar.
+     * @throws IOException
+     */
+    public void sendMessage(String msg){
 	try{
 	    salida.writeObject(msg);
 	    salida.flush();

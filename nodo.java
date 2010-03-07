@@ -109,9 +109,9 @@ public class nodo {
 	if (cmd[0].equalsIgnoreCase("C") && cmd.length == 3){
 	    if (cmd[1].equalsIgnoreCase("-t") || cmd[1].equalsIgnoreCase("-k")){
 		try{
-		    traza.write("Consulta recibida: ");
+		    traza.write("Consulta   ");
 		    traza.write(comando);
-		    traza.write("\n");
+		    traza.write("  recibida desde " + socket.getInetAddress().getHostName()+"\n");
 		    traza.flush();
 		}
 		catch(Exception e){
@@ -130,15 +130,15 @@ public class nodo {
 	    servidor = aux[0];
 	    archivo = aux[1];
 	    try{
-		traza.write("Peticion de foto solicitada:");
+		traza.write("Peticion de foto    ");
 		traza.write(comando);
-		traza.write("\n");
+		traza.write("  recibida desde " + socket.getInetAddress().getHostName()+"\n");
 		traza.flush();
 	    }
 	    catch(Exception e){
 		System.out.println("error");
 	    }
-	    System.out.println("Solicitud de foto " + archivo + " a servidor " + servidor);
+	    //System.out.println("Solicitud de foto " + archivo + " a servidor " + servidor);
 	    
 	    try {
 		enviar_archivo(archivo);
@@ -152,11 +152,27 @@ public class nodo {
 	}
 	/* obterner numero de vecinos */
 	else if (cmd[0].equalsIgnoreCase("A") && cmd.length == 1){
+	    try{
+                traza.write("Solicitud de numeros de vecinos recibida desde " + socket.getInetAddress().getHostName()+"\n");
+                traza.flush();
+            }
+            catch(Exception e){
+                System.out.println("error");
+            }
+
 	    enviar(out, "Numero de Vecinos: " + nodos_vecinos.size());
 	    return 0;
 	}
 	/* salir */
 	else if (cmd[0].equalsIgnoreCase("Q") && cmd.length == 1){
+	    try{
+                traza.write("Solicitud para cerrar conexion recibida desde " + socket.getInetAddress().getHostName()+"\n");
+                traza.flush();
+            }
+            catch(Exception e){
+                System.out.println("error");
+            }
+
 	    return 1; /* para enviar mensaje al cliente y cerrar conexion */
 	}
 	/* fin comunicacion fotos - nodo */
@@ -237,12 +253,8 @@ public class nodo {
     public void run(int puerto, String maquinas, String log){
 	try{
 	    String cliente;
-	    //PrintWriter escribir = new PrintWriter(new BufferedWriter(new FileWriter(log)));
-	    //escribir.println(": 1");
-	    BufferedWriter traza2 = new BufferedWriter(new FileWriter(log));
-	    //traza2.write("Hola feo\n");
-	    //traza2.flush();
-
+	    BufferedWriter traza2 = new BufferedWriter(new FileWriter(log,true));
+	    
 	    // Se obtienen los nodos vecinos.
 	    nodos_vecinos = Vecinos(maquinas);
 	 
@@ -257,37 +269,33 @@ public class nodo {
 
 	    // aceptar conexion
 	    socket = serversock.accept();
-	    
 	    // nombre de cliente
 	    cliente = socket.getInetAddress().getHostName();
-	    //	    System.out.println("blah: "+socket.getInetAddress().getHostAddress());
-	    // streams
+	    
+	    System.out.println("Conexion establecida");
 	    out = new ObjectOutputStream(socket.getOutputStream());
 	    out.flush();
 	    in = new ObjectInputStream(socket.getInputStream());
-
 	    enviar(out,"<exito/>");
 
 	    do{
-		//try{
-		    mensaje = (String)recibir(in);
-		    if (mensaje.equals("<bye/>"))
-			break;
-		    System.out.println(mensaje);
-		    
-		    switch(verificar_comando(mensaje,traza2)) {
-		    case -1:
-			enviar(out,"Comando invalido");
-			mensaje = ""; // para evitar que coincida con bye
-			break;
-		    case 1:
-			mensaje = "<bye/>"; // para que salga el servidor
-			enviar(out,mensaje); // para que salga el cliente
-			break;
-		    default:
-			//mensaje = "<bye/>";
-			break;
-		    }
+		mensaje = (String)recibir(in);
+		if (mensaje.equals("<bye/>"))
+		    break;
+		System.out.println(mensaje);
+		
+		switch(verificar_comando(mensaje,traza2)) {
+		case -1:
+		    enviar(out,"Comando invalido");
+		    mensaje = ""; // para evitar que coincida con bye
+		    break;
+		case 1:
+		    mensaje = "<bye/>"; // para que salga el servidor
+		    enviar(out,mensaje); // para que salga el cliente
+		    break;
+		default:
+		    break;
+		}
 	    } while(!mensaje.equals("<bye/>"));
 
 	    in.close();
@@ -386,7 +394,7 @@ public class nodo {
 		if (!visitados.contains(nodos_vecinos.elementAt(i))){
 		    //		    System.out.println("Visitados: " + visitados);
 		    try{
-			sock = new Socket(nodos_vecinos.elementAt(i),puerto);
+				sock = new Socket(nodos_vecinos.elementAt(i),puerto);
 		    }
 		    catch (Exception e){
 			System.err.println("No se pudo establecer conexion con: " + nodos_vecinos.elementAt(i));
@@ -394,7 +402,6 @@ public class nodo {
 			visitados.add(nodos_vecinos.elementAt(i));
 			// continuo con las demas conexiones
 			continue;
-			
 		    }
 		    salida = new ObjectOutputStream(sock.getOutputStream());
 		    entrada = new ObjectInputStream(sock.getInputStream());
