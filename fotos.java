@@ -1,26 +1,56 @@
 import java.io.*;
 import java.net.*;
 
-public class fotos{
+public class fotos {
+
+    /** Socket a traves de cual se 
+     * hacen las consultas */
     Socket SocketCliente;
+    /** Canal por el cual se envian
+     *streams de datos */ 
     ObjectOutputStream salida;
+    /** Canal por el cual se 
+     * reciben streams de datos */ 
     ObjectInputStream entrada;
+    /** Comando de consulta/transferencia
+     * que se envia a la palicacion nodo */
     String mensaje;
+    /** Puerto logico por el cual 
+     * se establece la comunicacion */
     int puerto;
+    /**  Maquina a la cual se conectara
+     * para hacer las consultas */
     String maquina;
+    /** Comando de consulta/transferencia
+     * de fotos */
     String comando;
     
-    /* Constructor */
+    /** Constructor
+     * Crea una instancia de la clase fotos
+     * @param port puerto por el cual se conecta a la base
+     * de datos fotografica
+     * @param maq maquina a la cual se conectara para hacer
+     * las consultas
+     */
     fotos(int port,String maq){
 	puerto = port;
 	maquina = maq;
     }
 
+
+    /**
+     * Provee una interfaz para realizar consultas 
+     * sobre fotos, que se encuentran en una 'base de datos'
+     * fotografica distribuida, y permite descargarlas.
+     *
+     */
     public void run()
     {
 	String con = null;
+	String [] cmd;
+	BufferedReader br;
        	try{
-	    // Se crea un socket 
+
 	    SocketCliente = new Socket(maquina,puerto);
 	    mensaje = null;
 	    salida = new ObjectOutputStream(SocketCliente.getOutputStream());
@@ -36,7 +66,7 @@ public class fotos{
 	    do {
 		try{
 		    /* Se obtiene el comando a ejecutar */
-		    BufferedReader br = new BufferedReader(new InputStreamReader(System.in));
+		    br = new BufferedReader(new InputStreamReader(System.in));
 		    mensaje = br.readLine();
 		    if (mensaje.equalsIgnoreCase("q")) {
 			mensaje = "<bye/>";
@@ -45,7 +75,8 @@ public class fotos{
 		    else if (mensaje.matches("[\\s]*[dD][\\s]*[\\S]+[:][\\S]+")) {
 			System.out.println("rec...");
 			sendMessage(mensaje);
-			recibir_archivo();
+			cmd = mensaje.split(":");
+			recibir_archivo(cmd[0].split(" ")[1],cmd[cmd.length-1]);
 		    }
 		    else {
 			sendMessage(mensaje);
@@ -78,35 +109,49 @@ public class fotos{
 	}
     }
 
-    private void recibir_archivo() throws Exception {
-	int filesize=62789; // filesize temporary hardcoded
-       	long start = System.currentTimeMillis();
+
+    public int byteArrayToInt(byte [] b) {
+        return (b[0] << 24)
+                + ((b[1] & 0xFF) << 16)
+                + ((b[2] & 0xFF) << 8)
+                + (b[3] & 0xFF);
+    }
+
+    private void recibir_archivo(String nodo, String archivo) throws Exception {
+	//Socket sock = new Socket(nodo,puerto);
+	int filesize = 0;
 	int bytesRead;
 	int current = 0;
-		
-	byte [] mybytearray  = new byte [filesize];
 	ObjectInputStream is = new ObjectInputStream(SocketCliente.getInputStream());
-	FileOutputStream fos = new FileOutputStream("./../twitter.png");
+	FileOutputStream fos = new FileOutputStream("./" + archivo);
 	BufferedOutputStream bos = new BufferedOutputStream(fos);
-	bytesRead = is.read(mybytearray,0,mybytearray.length);
-	current = bytesRead;
-      	
-	do {
+	byte [] tamano = new byte[4]; 
+	//byte [] mybytearray;
 
+	bytesRead = 0;
+	while(bytesRead > -1 && current < 4){
 	    bytesRead =
-		entrada.read(mybytearray, current, (mybytearray.length-current));
-	System.out.println(bytesRead);
+		is.read(tamano, current, 4 - current);
 	    if(bytesRead >= 0) current += bytesRead;
-	} while(bytesRead > -1 && current < filesize);
-	
+	} 
+	System.out.println(byteArrayToInt(tamano));
+	byte [] mybytearray = new byte [byteArrayToInt(tamano)];
 
+
+	current = 0;
+	bytesRead = 0;
+	while(bytesRead > -1 && current < byteArrayToInt(tamano))
+	 {
+	    bytesRead =
+		is.read(mybytearray, current, (mybytearray.length-current));
+
+	    if(bytesRead >= 0) current += bytesRead;
+	}
+	
 	bos.write(mybytearray, 0 , current);
 	bos.flush();
-	long end = System.currentTimeMillis();
-	System.out.println(end-start);
 	bos.close();
 	System.out.println("done receiving");
-
     }
 
     void sendMessage(String msg)
@@ -149,8 +194,8 @@ public class fotos{
 	    System.out.println("Uso: edolab -f <maquinas> -p <puertoRemote>\n");
 	    System.exit(-1);
 	}
-	fotos client = new fotos(puerto,maq);
-	client.run();
+	fotos cliente = new fotos(puerto,maq);
+	cliente.run();
 	
     }
 }

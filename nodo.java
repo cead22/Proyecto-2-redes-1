@@ -4,23 +4,55 @@ import java.util.*;
 import java.util.regex.*;
 import nanoxml.*;
 
+/**
+ * Clase para representar los nodos conectados a la red.
+ * @author Carlos Alvarez y Marion CArambula.
+ */
 public class nodo {
+    /** Socket por el cual se escuchan
+     * peticiones de conexion */
     private ServerSocket serversock;
+    /** Socket por el cual se establece
+     * la comunicacion con la aplicacion
+     * fotos */
     private Socket socket;
+    /** Canal por el cual se 
+     * envian streams de datos */
     private ObjectOutputStream out;
+    /** Canal por el cual se 
+     * reciben streams de datos */
     private ObjectInputStream in;
+    /** Comando recibido de 
+     * consulta/transferencia */
     private String mensaje;
+    /** Puerto logico por el cual 
+     * se establece la comunicacion */
     private int puerto;
+    /** directorio donde se encuentran
+     * las fotos */
     String directorio;
+    /** computadores alcanzables desde este */
     Vector<String> nodos_vecinos;
-    String bus;
 
+   /** 
+    * Crea un nodo a partir de un puerto y un directorio.
+    * @param p puerto a traves el cual se hara la conexion.
+    * @param dir directorio donde.
+    */
     public nodo(int p, String dir){
 	directorio = dir;
 	puerto = p;
 	socket = null;
     }
 
+
+     /** 
+     * Envia un mensaje determinado a traves de una salida
+     * especificada.
+     * @param out salida a traves de la cual se mandara el mensaje.
+     * @param mensaje mensaje a enviar.
+     * @throws IOException
+     */
     private void enviar (ObjectOutputStream out, Object mensaje){
 	try{
 	    out.writeObject(mensaje);
@@ -31,6 +63,11 @@ public class nodo {
 	}
     }
 
+     /** 
+     * Recibe un mensaje a traves de un canal de entrada especificado
+     * @param Canal de entrada del mensaje.
+     * @throws IOException
+     */
     private Object recibir (ObjectInputStream in){
 	Object o = null;
 	try{
@@ -42,6 +79,11 @@ public class nodo {
 	return o;
     }
     
+    /** 
+     * Convierte un arreglo en una cadena de caracteres.
+     * @param arr[] Arreglo de String a convertir en una cadena.
+     * @return La cadena de caracteres.
+     */
     public String cadena(String arr[]) {
 	String res = "";
 	for (int i = 0; i < arr.length; i++){
@@ -50,7 +92,13 @@ public class nodo {
 	return res;
     }
 
-    private int verificar_comando(String comando) {
+    /** 
+     * Verifica una cadena de caracteres que representa un   
+     * comando y ejecuta la accion pertinente.
+     * @param comando String que indica la accion a tomar.
+     * @return 0 si la accion fue llevada a cabo exitosamente -1 si fracaso 1 si el comando recibido fue q (terminar la conexion).
+     */
+    private int verificar_comando(String comando,BufferedWriter traza) {
 	String cmd[] = comando.split("[\\s]+");
 	String aux[];
 	String servidor;
@@ -60,6 +108,15 @@ public class nodo {
 	/* buscar fotos */
 	if (cmd[0].equalsIgnoreCase("C") && cmd.length == 3){
 	    if (cmd[1].equalsIgnoreCase("-t") || cmd[1].equalsIgnoreCase("-k")){
+		try{
+		    traza.write("Consulta recibida: ");
+		    traza.write(comando);
+		    traza.write("\n");
+		    traza.flush();
+		}
+		catch(Exception e){
+		    System.out.println("error");
+		}
 		//recibir(in);
 		dfs_distribuido(cmd[1] + " " + cmd[2], new Vector<String>());
 		//enviar(out,recibir(in));
@@ -72,13 +129,24 @@ public class nodo {
 	    aux = cmd[1].split(":");
 	    servidor = aux[0];
 	    archivo = aux[1];
+	    try{
+		traza.write("Peticion de foto solicitada:");
+		traza.write(comando);
+		traza.write("\n");
+		traza.flush();
+	    }
+	    catch(Exception e){
+		System.out.println("error");
+	    }
 	    System.out.println("Solicitud de foto " + archivo + " a servidor " + servidor);
+	    
 	    try {
-		enviar_archivo();
+		enviar_archivo(archivo);
 	    }catch(Exception e) {
 		e.getMessage();
-		System.exit(-1);
+	
 		e.printStackTrace();
+		System.exit(-1);
 	    }
 	    return 0;
 	}
@@ -111,15 +179,20 @@ public class nodo {
 	/* fin comunicacion nodo - nodo */
     }
 	
-    public static Vector<String> Vecinos (String traza) {
+    /** 
+     * Obtiene las vecinos de un nodo y los almacena en
+     * un vector.
+     * @param traza Archivo donde se encuentran especificados los vecinos de un nodo.
+     * @throws EOFException, FileNotFoundException
+     * @return Vector de visitados
+     */ 
+    public static Vector<String> Vecinos (String maquinas) {
 	File archivo = null;
 	FileReader fr = null;
 	BufferedReader br = null;
 	Vector <String> ln  = new Vector <String>();
 	try {
-	    // Apertura del fichero y creacion de BufferedReader para poder
-	    // hacer una lectura comoda (disponer del metodo readLine()).
-	    archivo = new File (traza);
+	    archivo = new File (maquinas);
 	    fr = new FileReader (archivo);
 	    br = new BufferedReader(fr);
 	    
@@ -134,7 +207,7 @@ public class nodo {
 	    return ln;
 	}
 	catch(FileNotFoundException e){
-	    System.err.println("El archivo "+ traza+" no existe.");
+	    System.err.println("El archivo "+ maquinas+" no existe.");
 	}
 	catch (Exception e){
 	    e.printStackTrace();
@@ -151,9 +224,24 @@ public class nodo {
 	return ln;
     }
     
+    /** 
+     * Lleva a cabo la creacion del socket y ejecuta todas las acciones
+     * pertinentes para la realizacion del intercambio de informacion y 
+     * fotos.
+     * @param puerto Puerto donde se llevara a cabo la conexion.
+     * @param maquinas Archivo donde se almacenan los vecinos del nodo.
+     * @param log Archivo donde se escribe el resultado de la busqueda.
+     * @throws BindException, IOException
+     */
     public void run(int puerto, String maquinas, String log){
 	try{
 	    String cliente;
+	    //PrintWriter escribir = new PrintWriter(new BufferedWriter(new FileWriter(log)));
+	    //escribir.println(": 1");
+	    BufferedWriter traza2 = new BufferedWriter(new FileWriter(log));
+	    //traza2.write("Hola feo\n");
+	    //traza2.flush();
+
 	    // Se obtienen los nodos vecinos.
 	    nodos_vecinos = Vecinos(maquinas);
 	 
@@ -186,7 +274,7 @@ public class nodo {
 			break;
 		    System.out.println(mensaje);
 		    
-		    switch(verificar_comando(mensaje)) {
+		    switch(verificar_comando(mensaje,traza2)) {
 		    case -1:
 			enviar(out,"Comando invalido");
 			mensaje = ""; // para evitar que coincida con bye
@@ -199,34 +287,40 @@ public class nodo {
 			//mensaje = "<bye/>";
 			break;
 		    }
-		    //	}
-	    //catch(IOException ioe){
-	    //	    System.err.println("I/O ERROR: " + ioe.getMessage());
-	    //}
-		//catch(ClassNotFoundException classnot){
-		//  System.err.println("Data received in unknown format");
-		//}
-	    }while(!mensaje.equals("<bye/>"));
+	    } while(!mensaje.equals("<bye/>"));
 
 	    in.close();
 	    out.close();
+	    traza2.close();
 	    serversock.close();
 	}
 	catch(IOException ioException){
 	    ioException.printStackTrace();
 	}
     }
-
+    
+    /** 
+     * Indica la forma correcta de hacer la llamada al programa.
+     * @param s String a imprimir por pantalla.
+     */
     public static void uso(String s){
 	System.out.println(s);
 	System.out.println("Uso: nodo -p <puerto> -f <maquinas> -l <archivoTrazas> -d <directorio>");
 	System.exit(-1);
     }
+    
+    /** 
+     * Indica la forma correcta de hacer la llamada al programa.
+     */
     public static void uso(){
 	System.out.println("Uso: nodo -p <puerto> -f <maquinas> -l <archivoTrazas> -d <directorio>");
 	System.exit(-1);
     }
-
+    /** 
+     * Obtiene el ip publico de la maquina donde se esta ejecutando el programa
+     * @return Ip Publico
+     * @throws  Exception
+     */
     private String mi_ip () {
 	Enumeration e1;
 	Enumeration e2;
@@ -251,6 +345,11 @@ public class nodo {
 	return "conexion nula";
     }
 
+    /** 
+     * Lleva a cabo un dfs para obtener informacion sobre los nodos vecinos
+     * @param busqueda Indica que tipo de busqueda se esta realizado: por titulo o por palabras claves.
+     * @param visitados Representa el vector de nodos que ya fueron visitados previamente.
+     */
     public void dfs_distribuido (String busqueda, Vector<String> visitados){
 	String resultado = "";
 	File archivo = new File(directorio);
@@ -262,27 +361,40 @@ public class nodo {
 	
 	/* busqueda local */
 	for (int i = 0; i < archivos_xml.length; i++) {
-	    if (!(foto = match(archivos_xml[i], busqueda)).equals("<no/>")){
+	    if (!(foto = match(directorio + "/" +archivos_xml[i], busqueda)).equals("<no/>")){
 		resultado = resultado + "\n===\n+ Archivo: " + archivos_xml[i].substring(0,archivos_xml[i].length()-4) + "\n" + foto + "\n";
 	    }
 	}
+
+	/*
 	try {
 	    System.out.println("0. Servidor: "+ InetAddress.getLocalHost().getHostName()+"\nresultado: " + resultado);
 	}
 	catch (Exception e){
 	    System.err.println("here1: " + e.getMessage());
 	}
+	*/
 	/* marcar como visitado */
 	visitados.add(mi_ip());
 
-	System.out.println(nodos_vecinos);
+	//System.out.println(nodos_vecinos);
 
 	/* busqueda remota */
 	try {
 	    for (int i = 0; i < nodos_vecinos.size(); i++) {
 		if (!visitados.contains(nodos_vecinos.elementAt(i))){
-		    System.out.println("Visitados: " + visitados);
-		    sock = new Socket(nodos_vecinos.elementAt(i),puerto);
+		    //		    System.out.println("Visitados: " + visitados);
+		    try{
+			sock = new Socket(nodos_vecinos.elementAt(i),puerto);
+		    }
+		    catch (Exception e){
+			System.err.println("No se pudo establecer conexion con: " + nodos_vecinos.elementAt(i));
+			// evitar que sea visitado
+			visitados.add(nodos_vecinos.elementAt(i));
+			// continuo con las demas conexiones
+			continue;
+			
+		    }
 		    salida = new ObjectOutputStream(sock.getOutputStream());
 		    entrada = new ObjectInputStream(sock.getInputStream());
 		    System.out.println("A: "+recibir(entrada));
@@ -290,25 +402,32 @@ public class nodo {
 		    enviar(salida,"B " + busqueda);
 		    enviar(salida,visitados);
 		    
-		    System.out.println("1. Servidor: "+ InetAddress.getLocalHost().getHostName()+"\nresultado: " + resultado);
-		    resultado = resultado + (String)entrada.readObject();
-		    System.out.println("2. Servidor: "+ InetAddress.getLocalHost().getHostName()+"\nresultado: " + resultado);
+		    resultado = resultado + (String)recibir(entrada);
+		    visitados = (Vector <String>)recibir(entrada);
 		    enviar(salida,"<bye/>");
 		    salida.close();
 		    entrada.close();
 		    sock.close();
 		}
 	    }
-	    
-	    enviar(out,resultado);
-	    
+	  
 	}
 	catch (Exception e){
 	    System.err.println("here: " + e.getMessage());
-	}
-	System.out.println("wasa");
-    } 
+	} finally {
+	    enviar(out,resultado);
+	    enviar(out,visitados);
+	} 
+    }
 
+    
+    /** 
+     * Hace una busqueda de una string dado en un archivo xml.
+     * @param archivo Archivo donde se ejecutara la busqueda.
+     * @param busqueda String a buscar en el archivo.
+     * @return No en caso que no se haya conseguido el string en el archivo
+     * en cualquier otro caso un string con ciertas caracteristicas.
+     */
     public String match (String archivo, String busqueda) {
 
 	XMLElement xml = new XMLElement();
@@ -383,21 +502,42 @@ public class nodo {
 	return "<no/>"; // no necesario si el xml esta bien hecho
     }
 
-    private void enviar_archivo() throws Exception{
+    public byte[] entero_a_arreglo(int value) {
+        return new byte[] {
+                (byte)(value >>> 24),
+                (byte)(value >>> 16),
+                (byte)(value >>> 8),
+                (byte)value};
+    }
 
-	// sendfile
-	File myFile = new File ("twitter.png");
-	byte [] mybytearray  = new byte [(int)myFile.length()];
-	FileInputStream fis = new FileInputStream(myFile);
-	BufferedInputStream bis = new BufferedInputStream(fis);
-	bis.read(mybytearray,0,mybytearray.length);
-	ObjectOutputStream os = new ObjectOutputStream(socket.getOutputStream());
-	System.out.println("Sending...");
 
-	os.write(mybytearray,0,mybytearray.length);
-	os.flush();
-	//os.close();
-	System.out.println("done sending");
+    private void enviar_archivo(String archivo) {
+	try {
+	    File foto = new File (directorio + "/" + archivo);
+	    byte [] bytes_foto  = new byte [(int)foto.length()];
+	    int tam = bytes_foto.length;
+	    FileInputStream fi = new FileInputStream(foto);
+	    BufferedInputStream bi = new BufferedInputStream(fi);
+	    ObjectOutputStream salida = new ObjectOutputStream(socket.getOutputStream());
+	    byte [] tamano = new byte[4];
+
+	    bi.read(bytes_foto,0,bytes_foto.length);
+	    tamano = entero_a_arreglo(tam);
+	    
+	    salida.write(tamano,0,4);
+	    salida.flush();
+
+
+	    salida.write(bytes_foto,0,bytes_foto.length);
+	    salida.flush();
+	    System.out.println("done sending");
+	} catch (FileNotFoundException f) {
+	    System.err.println("Foto no encontrada");
+	} catch (IOException io) {
+	    System.err.println("Error E/S");
+	} catch (Exception e) {
+	    System.err.println("Error");
+	}
 	
     }
 
@@ -438,12 +578,14 @@ int puerto = 0;
 	    }    
 	    else uso();
 	}
-	traza = dir_Act + maquinas;
+	//maquinas = dir_Act + "/"+maquinas;
+	
 	if (!(check[0] && check[1] && check[2] && check[3])) uso();
+	//System.out.println("m"+ maquinas+ "\n traza " + traza);
 	// Fin revision de parametros de llamada
 	
 	nodo servidor = new nodo(puerto,directorio);
-	//	System.out.println(InetAddress.getByName("carlos"));
+	
 
 	while(true){
 	    servidor.run(puerto, maquinas, traza);

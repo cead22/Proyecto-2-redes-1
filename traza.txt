@@ -1,4 +1,1 @@
-hola
-soy
-la
-mejor
+Consulta recibida: c -t k
