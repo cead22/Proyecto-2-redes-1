@@ -1,1 +1,1 @@
-Consulta recibida: c -t k
+Consulta recibida: c -t y

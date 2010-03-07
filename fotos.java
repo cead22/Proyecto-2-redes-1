@@ -83,10 +83,16 @@ public class fotos {
 			System.out.println((String)entrada.readObject());
 		    }
 		}
+		catch (ConnectException c) {
+		    System.err.println("No se pudo establecer conexion con" + maquina);
+		}
 		catch(Exception e){
-		    e.printStackTrace();
+		    System.err.println("ERROR: " + e.getMessage());
 		}
 	    } while (!mensaje.equalsIgnoreCase("<bye/>"));
+	    
+	    salida.close();
+	    SocketCliente.close();
 	}
 	catch(UnknownHostException unknownHost){
 	    System.err.println("Nombre de servidor invalido");
@@ -96,16 +102,6 @@ public class fotos {
 	}
 	catch(ClassNotFoundException ioException){
 	    ioException.printStackTrace();
-	}
-	finally{
-	    /* Se cierra la conexion */
-	    try{
-		salida.close();
-		SocketCliente.close();
-	    }
-	    catch(IOException ioException){
-		ioException.printStackTrace();
-	    }
 	}
     }
 

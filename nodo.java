@@ -119,7 +119,7 @@ public class nodo {
 		}
 		//recibir(in);
 		dfs_distribuido(cmd[1] + " " + cmd[2], new Vector<String>());
-		//enviar(out,recibir(in));
+		//recibir(in);
 		return 0;
 	    }
 	    else return -1;
@@ -164,14 +164,15 @@ public class nodo {
 	/* comunicacion nodo - nodo */
 	else if (cmd[0].equalsIgnoreCase("B") && cmd.length == 3){
 	    String res = "";
-	    Vector<String> v = null;
+	    Vector<String> visitados = null;
 	    try {
-		v = (Vector<String>)recibir(in);
+		visitados = (Vector<String>)recibir(in);
 	    }
 	    catch (Exception e) {
 		System.out.println(e.getMessage());
 	    }
-	    dfs_distribuido(cmd[1] + " " + cmd[2],v);
+	    visitados = dfs_distribuido(cmd[1] + " " + cmd[2],visitados);
+	    enviar(out,visitados);
 	    //enviar(out,recibir(in));
 	    return 0;
 	}
@@ -350,7 +351,7 @@ public class nodo {
      * @param busqueda Indica que tipo de busqueda se esta realizado: por titulo o por palabras claves.
      * @param visitados Representa el vector de nodos que ya fueron visitados previamente.
      */
-    public void dfs_distribuido (String busqueda, Vector<String> visitados){
+    public Vector<String> dfs_distribuido (String busqueda, Vector<String> visitados){
 	String resultado = "";
 	File archivo = new File(directorio);
 	String[] archivos_xml = archivo.list(new explorador(".xml"));
@@ -403,7 +404,7 @@ public class nodo {
 		    enviar(salida,visitados);
 		    
 		    resultado = resultado + (String)recibir(entrada);
-		    visitados = (Vector <String>)recibir(entrada);
+		    visitados = (Vector)recibir(entrada);
 		    enviar(salida,"<bye/>");
 		    salida.close();
 		    entrada.close();
@@ -416,7 +417,7 @@ public class nodo {
 	    System.err.println("here: " + e.getMessage());
 	} finally {
 	    enviar(out,resultado);
-	    enviar(out,visitados);
+	    return visitados;
 	} 
     }
 
