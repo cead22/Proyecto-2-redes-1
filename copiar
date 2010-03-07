@@ -1,0 +1,5 @@
+#!/bin/bash
+scp nodo.java 06-39141@leto.ldc.usb.ve:
+scp nodo.java 06-39141@ishmael.ldc.usb.ve:
+scp explorador.java 06-39141@leto.ldc.usb.ve:
+scp explorador.java 06-39141@ishmael.ldc.usb.ve:
