@@ -1,5 +1,6 @@
 import java.io.*;
 import java.net.*;
+import java.util.*;
 
 
 /**
@@ -86,15 +87,25 @@ public class fotos {
 		    }
 		    /*Se verifica que el comando sea solicitud de foto */
 		    else if (mensaje.matches("[\\s]*[dD][\\s]*[\\S]+[:][\\S]+")) {
-			System.out.println("Recibiendo foto");
-			cmd = mensaje.split(":");
-			recibir_archivo(mensaje, cmd[0].split(" ")[1],cmd[cmd.length-1]);
+			if (!mensaje.matches("[\\s]*[dD][\\s]*[\\S]+[:][\\S]+jpg")) {
+			    System.err.println("La foto debe tener extension .jpg");
+			    continue;
+			}
+			else{
+			    System.out.println("Recibiendo foto");
+			    cmd = mensaje.split(":");
+			    recibir_archivo(mensaje, cmd[0].split(" ")[1],cmd[cmd.length-1]);
+			}
 		    }
 		    else {
 			sendMessage(mensaje);
-			String s = entrada.readObject());
-		    
-			System.out.println(s);
+			String s = (String)entrada.readObject();
+			if (s.equals("<alc/>")) {
+			    System.out.println("Alcanzables: " + ((Vector)entrada.readObject()).size());
+			}
+			else {
+			    System.out.println(s);
+			}
 		    }
 		}
 		catch (ConnectException c) {
@@ -123,6 +134,9 @@ public class fotos {
     }
 
 
+    /** Convierte un arreglo de 4 bytes a un entero
+     * @param b el arreglo de bytes
+     */
     public int byteArrayToInt(byte [] b) {
         return (b[0] << 24)
                 + ((b[1] & 0xFF) << 16)
@@ -130,6 +144,13 @@ public class fotos {
                 + (b[3] & 0xFF);
     }
 
+    /** Funcion que recibe una foto que le envia una aplicacion
+     * nodo y la guarda en el directorio actual
+     * @param mensaje comando a enviar a nodo para que transfiera
+     * el archivo
+     * @param nodo direccion ip de la maquina que enviara la foto
+     * @param archivo nombre de la foto
+     */
     private void recibir_archivo(String mensaje, String nodo, String archivo) throws Exception {
 	Socket sock = null;
 	int filesize = 0;
@@ -141,6 +162,8 @@ public class fotos {
 	BufferedOutputStream bos = new BufferedOutputStream(fos);
 	byte [] tamano = new byte[4]; 
 	byte [] mybytearray;
+
+	System.out.println("Intentando recibir foto...");
 
 	/* Se requiere nueva conexion */
 	if (!nodo.equals("localhost") && !nodo.equals("127.0.0.1")) {
@@ -193,7 +216,7 @@ public class fotos {
 
 	os.writeObject("<bye/>");
 	os.flush();
-	System.out.println("done receiving");
+	System.out.println("Foto Recibida");
     }
 
 
@@ -213,6 +236,9 @@ public class fotos {
 	}
     }
 
+    /** Revisa los parametros de la llamada y lee de la consola
+     * los comandos a enviar a la aplicacion nodos
+     */
     public static void main(String args[]){
 	int puerto = 0;
 	String maq = null;

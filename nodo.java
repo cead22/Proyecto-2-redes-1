@@ -151,9 +151,6 @@ public class nodo {
 		catch(Exception e1){
 		    System.err.println("Error al escribir en traza");
 		}
-		//e.getMessage();
-		//e.printStackTrace();
-		//System.exit(-1);
 	    }
 	    /* Comando invalido*/
 	    return 0;
@@ -168,6 +165,7 @@ public class nodo {
             catch(Exception e){
 		System.err.println("Error al escribir en traza");
 	    }
+	    enviar(out,"<alc/>");
 	    Vector<String> alc = alcanzables(new Vector<String>());
 	    return 0;
 	}
@@ -196,7 +194,7 @@ public class nodo {
                 traza.flush();
             }
             catch(Exception e){
-                System.out.println("error");
+                System.out.println("Error");
             }
 	    /* para enviar mensaje al cliente y cerrar conexion */
 	    return 1; 
@@ -576,7 +574,7 @@ public class nodo {
 			if (aux.find()){
 			    titulo = "- Titulo: " + ((XMLElement)children.elementAt(i-4)) + "\n";
 			    autor = "- Autor:\n\t" + ((XMLElement)children.elementAt(i-2)).getAttribute("name") + "\n";
-			    descripcion = "- Descripcion:" + ((XMLElement)children.elementAt(i-1)).getContent() + "\n===";
+			    descripcion = "- Descripcion:" + ((XMLElement)children.elementAt(i-1)).getContent() + "\n";
 			    servidor = "- Servidor: \n\t" + mi_ip() + "\n===";
 			    return titulo + autor + descripcion + servidor;
 			}
