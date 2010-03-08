@@ -375,37 +375,20 @@ public class nodo {
 	    }
 	}
 
-	/*
-	try {
-	    System.out.println("0. Servidor: "+ InetAddress.getLocalHost().getHostName()+"\nresultado: " + resultado);
-	}
-	catch (Exception e){
-	    System.err.println("here1: " + e.getMessage());
-	}
-	*/
 	/* marcar como visitado */
 	visitados.add(mi_ip());
-
-	//System.out.println(nodos_vecinos);
 
 	/* busqueda remota */
 	try {
 	    for (int i = 0; i < nodos_vecinos.size(); i++) {
 		if (!visitados.contains(nodos_vecinos.elementAt(i))){
-		    //		    System.out.println("Visitados: " + visitados);
-		    try{
-				sock = new Socket(nodos_vecinos.elementAt(i),puerto);
-		    }
-		    catch (Exception e){
-			System.err.println("No se pudo establecer conexion con: " + nodos_vecinos.elementAt(i));
-			// evitar que sea visitado
-			visitados.add(nodos_vecinos.elementAt(i));
-			// continuo con las demas conexiones
-			continue;
-		    }
+		    sock = new Socket(nodos_vecinos.elementAt(i),puerto);
 		    salida = new ObjectOutputStream(sock.getOutputStream());
 		    entrada = new ObjectInputStream(sock.getInputStream());
-		    System.out.println("A: "+recibir(entrada));
+		    
+		    visitados.add(nodos_vecinos.elementAt(i));		    
+
+		    recibir(entrada);
 		    
 		    enviar(salida,"B " + busqueda);
 		    enviar(salida,visitados);
@@ -422,6 +405,7 @@ public class nodo {
 	}
 	catch (Exception e){
 	    System.err.println("here: " + e.getMessage());
+	    e.printStackTrace();
 	} finally {
 	    enviar(out,resultado);
 	    return visitados;
@@ -531,19 +515,32 @@ public class nodo {
 
 	    bi.read(bytes_foto,0,bytes_foto.length);
 	    tamano = entero_a_arreglo(tam);
-	    
+	    System.out.println("sending");	    
 	    salida.write(tamano,0,4);
 	    salida.flush();
 
 
 	    salida.write(bytes_foto,0,bytes_foto.length);
 	    salida.flush();
+	   
 	    System.out.println("done sending");
-	} catch (FileNotFoundException f) {
-	    System.err.println("Foto no encontrada");
-	} catch (IOException io) {
+	}
+	catch (FileNotFoundException f) {
+	    try {
+		System.err.println("Foto no encontrada");
+		byte [] nulo = new byte [4];
+		for (int i = 0; i < 4; i++)
+		    nulo[i] = 0x00;
+		ObjectOutputStream salida = new ObjectOutputStream(socket.getOutputStream());
+		salida.write(nulo,0,4);
+		salida.flush();
+	    } 
+	    catch (Exception e) {
+		System.err.println("Error al escribir en socket");
+	    }
+	} catch (IOException i) {
 	    System.err.println("Error E/S");
-	} catch (Exception e) {
+	} catch (Exception ex) {
 	    System.err.println("Error");
 	}
 	

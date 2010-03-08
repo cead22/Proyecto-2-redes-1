@@ -4,5 +4,5 @@ export CLASSPATH=nanoxml.jar:.
 
 export PATH=$PATH:/usr/bin
 
-java Fotos $1 $2 $3 $4
+java fotos $1 $2 $3 $4
 

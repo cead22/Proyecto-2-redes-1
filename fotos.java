@@ -57,9 +57,10 @@ public class fotos {
 	    SocketCliente.setSoTimeout(10);
 	    mensaje = null;
 	    salida = new ObjectOutputStream(SocketCliente.getOutputStream());
-	    entrada = new ObjectInputStream(SocketCliente.getInputStream());
+	    entrada = new ObjectInputStream(SocketCliente.getInputStream());	    
 	    salida.flush();
 	    con = (String)entrada.readObject();
+	    
 	    if (!con.equals("<exito/>")){
 		System.err.println("El servidor corriendo en " + puerto + " no es nodo. Verifique el puerto");
 		System.exit(-1);
@@ -69,9 +70,11 @@ public class fotos {
 	    System.out.println("Conexion establecida con el servidor");
 	    do {
 		try{
+		    
 		    /* Se obtiene el comando a ejecutar */
 		    br = new BufferedReader(new InputStreamReader(System.in));
 		    mensaje = br.readLine();
+		    System.out.println("XXX");
 		    /* Se verifica comando de salida */
 		    if (mensaje.equalsIgnoreCase("q")) {
 			mensaje = "<bye/>";
@@ -80,9 +83,8 @@ public class fotos {
 		    /*Se verifica que el comando sea solicitud de foto */
 		    else if (mensaje.matches("[\\s]*[dD][\\s]*[\\S]+[:][\\S]+")) {
 			System.out.println("Recibiendo foto");
-			sendMessage(mensaje);
 			cmd = mensaje.split(":");
-			recibir_archivo(cmd[0].split(" ")[1],cmd[cmd.length-1]);
+			recibir_archivo(mensaje, cmd[0].split(" ")[1],cmd[cmd.length-1]);
 		    }
 		    else {
 			sendMessage(mensaje);
@@ -90,10 +92,11 @@ public class fotos {
 		    }
 		}
 		catch (ConnectException c) {
-		    System.err.println("No se pudo establecer conexion con" + maquina);
+		    System.err.println("No se pudo establecer conexion con " + maquina);
 		}
 		catch(Exception e){
 		    System.err.println("ERROR: " + e.getMessage());
+		    e.printStackTrace();
 		}
 	    } while (!mensaje.equalsIgnoreCase("<bye/>"));
 	    
@@ -121,40 +124,69 @@ public class fotos {
                 + (b[3] & 0xFF);
     }
 
-    private void recibir_archivo(String nodo, String archivo) throws Exception {
-	//Socket sock = new Socket(nodo,puerto);
+    private void recibir_archivo(String mensaje, String nodo, String archivo) throws Exception {
+	Socket sock = null;
 	int filesize = 0;
 	int bytesRead;
 	int current = 0;
-	ObjectInputStream is = new ObjectInputStream(SocketCliente.getInputStream());
+	ObjectInputStream is;
+	ObjectOutputStream os;
 	FileOutputStream fos = new FileOutputStream("./" + archivo);
 	BufferedOutputStream bos = new BufferedOutputStream(fos);
 	byte [] tamano = new byte[4]; 
-	//byte [] mybytearray;
+	byte [] mybytearray;
 
+	/* Se requiere nueva conexion */
+	if (!nodo.equals("localhost") && !nodo.equals("127.0.0.1")) {
+	    sock = new Socket(nodo,puerto);
+	    is = new ObjectInputStream(sock.getInputStream());
+	    os = new ObjectOutputStream(sock.getOutputStream());
+	}
+	/* No se requiere hacer nueva conexion */
+	else {
+	    is = entrada;
+	    os = salida;
+	}
+	os.writeObject(mensaje);
+	os.flush();
+
+	if (!nodo.equals("localhost") && !nodo.equals("127.0.0.1")) {
+	    System.out.println((String)is.readObject());	
+	    is = new ObjectInputStream(sock.getInputStream());
+	}
+	else {
+	    is = new ObjectInputStream(SocketCliente.getInputStream());
+	}
+
+	current = 0;
 	bytesRead = 0;
 	while(bytesRead > -1 && current < 4){
-	    bytesRead =
-		is.read(tamano, current, 4 - current);
+	    bytesRead = is.read(tamano, current, 4 - current);
 	    if(bytesRead >= 0) current += bytesRead;
 	} 
 	System.out.println(byteArrayToInt(tamano));
-	byte [] mybytearray = new byte [byteArrayToInt(tamano)];
-
-
+	mybytearray = new byte [byteArrayToInt(tamano)];
+	
+	if (mybytearray.length == 0) {
+	    System.out.println("Foto no encontrada");
+	    os.writeObject("<bye/>");
+	    os.flush();
+	    return;
+	}
 	current = 0;
 	bytesRead = 0;
 	while(bytesRead > -1 && current < byteArrayToInt(tamano))
 	 {
-	    bytesRead =
-		is.read(mybytearray, current, (mybytearray.length-current));
+	    bytesRead =	is.read(mybytearray, current, (mybytearray.length-current));
 
 	    if(bytesRead >= 0) current += bytesRead;
 	}
-	
 	bos.write(mybytearray, 0 , current);
 	bos.flush();
 	bos.close();
+
+	os.writeObject("<bye/>");
+	os.flush();
 	System.out.println("done receiving");
     }
 
