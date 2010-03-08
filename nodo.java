@@ -104,8 +104,8 @@ public class nodo {
 	String servidor;
 	String archivo;
 
-	/* comunicacion fotos - nodo */
-	/* buscar fotos */
+	/* comunicacion entre fotos - nodo */
+	/* Buscar foto(s) */
 	if (cmd[0].equalsIgnoreCase("C") && cmd.length == 3){
 	    if (cmd[1].equalsIgnoreCase("-t") || cmd[1].equalsIgnoreCase("-k")){
 		try{
@@ -115,16 +115,16 @@ public class nodo {
 		    traza.flush();
 		}
 		catch(Exception e){
-		    System.out.println("error");
+		    System.err.println("Error al escribir en la traza");
 		}
-		//recibir(in);
+		/* Busqueda en los demas nodos alcanzables */
 		dfs_distribuido(cmd[1] + " " + cmd[2], new Vector<String>());
-		//recibir(in);
 		return 0;
 	    }
+		/* Comando invalido */
 	    else return -1;
 	}
-	/* solicitar foto */
+	/* Solicitar una foto */
 	else if (cmd[0].equalsIgnoreCase("D") && cmd.length == 2 && cmd[1].matches("[\\S]+[:][\\S]+")){
 	    aux = cmd[1].split(":");
 	    servidor = aux[0];
@@ -136,32 +136,58 @@ public class nodo {
 		traza.flush();
 	    }
 	    catch(Exception e){
-		System.out.println("error");
+		System.err.println("Error al escribir en traza");
 	    }
-	    //System.out.println("Solicitud de foto " + archivo + " a servidor " + servidor);
 	    
 	    try {
 		enviar_archivo(archivo);
-	    }catch(Exception e) {
-		e.getMessage();
-	
-		e.printStackTrace();
-		System.exit(-1);
+		traza.write("El archivo solicitado por "+ socket.getInetAddress().getHostName() +"se envio correctamente");
+		
 	    }
+	    catch(Exception e) {
+		try{
+		    traza.write("El archivo solicitado por "+ socket.getInetAddress().getHostName() +"no pudo ser enviado correctamente");
+		}
+		catch(Exception e1){
+		    System.err.println("Error al escribir en traza");
+		}
+		//e.getMessage();
+		//e.printStackTrace();
+		//System.exit(-1);
+	    }
+	    /* Comando invalido*/
 	    return 0;
 	}
 	/* obterner numero de vecinos */
-	else if (cmd[0].equalsIgnoreCase("A") && cmd.length == 1){
+	else if (cmd[0].equalsIgnoreCase("A") && cmd.length == 1){	
+	    /* Busqueda de nodos alcanzables */
 	    try{
-                traza.write("Solicitud de numeros de vecinos recibida desde " + socket.getInetAddress().getHostName()+"\n");
-                traza.flush();
+                traza.write("Solicitud de alcanzables recibida desde " + socket.getInetAddress().getHostName()+"\n");                
+		traza.flush();
             }
             catch(Exception e){
-                System.out.println("error");
-            }
-
-	    enviar(out, "Numero de Vecinos: " + nodos_vecinos.size());
+		System.err.println("Error al escribir en traza");
+	    }
+	    Vector<String> alc = alcanzables(new Vector<String>());
 	    return 0;
+	}
+	
+	else if (cmd[0].equalsIgnoreCase("R") && cmd.length == 1){
+	    try{
+                traza.write("Solicitud para cerrar conexion recibida desde " + socket.getInetAddress().getHostName()+"\n");
+                traza.flush();
+                System.out.println("error");
+            
+		Vector<String> alc = null;
+		alc = (Vector<String>)recibir(in);
+		alc  = alcanzables(alc);
+		enviar(out,alc);
+	    }
+	    catch (Exception e) {
+		System.out.println(e.getMessage());
+	    }
+	    /* para enviar mensaje al cliente y cerrar conexion */
+	    return 0; 
 	}
 	/* salir */
 	else if (cmd[0].equalsIgnoreCase("Q") && cmd.length == 1){
@@ -172,12 +198,12 @@ public class nodo {
             catch(Exception e){
                 System.out.println("error");
             }
-
-	    return 1; /* para enviar mensaje al cliente y cerrar conexion */
+	    /* para enviar mensaje al cliente y cerrar conexion */
+	    return 1; 
 	}
 	/* fin comunicacion fotos - nodo */
 
-	/* comunicacion nodo - nodo */
+	/* Comunicacion entre nodo - nodo */
 	else if (cmd[0].equalsIgnoreCase("B") && cmd.length == 3){
 	    String res = "";
 	    Vector<String> visitados = null;
@@ -189,7 +215,6 @@ public class nodo {
 	    }
 	    visitados = dfs_distribuido(cmd[1] + " " + cmd[2],visitados);
 	    enviar(out,visitados);
-	    //enviar(out,recibir(in));
 	    return 0;
 	}
 	else return -1;
@@ -215,6 +240,7 @@ public class nodo {
 	    
 	    // Lectura del fichero
 	    String linea;
+	    /*Se obtienen los nodos vecinos, se ignora si dentro del archivo localhost es un vecino */
 	    while((linea = br.readLine()) != null && !linea.equals("127.0.0.1") && !linea.equals("localhost")){
 		linea = InetAddress.getByName(linea).getHostAddress();
 		ln.addElement(linea);
@@ -230,7 +256,8 @@ public class nodo {
 	    e.printStackTrace();
 	}
 	finally{
-	    try{                    
+	    try{
+		/*Se cierra el archivo */
 		if(null != fr){   
 		    fr.close();     
 		}                  
@@ -238,6 +265,7 @@ public class nodo {
 		e2.printStackTrace();
 	    }
 	}
+	/* Se retorna el vector de vecinos */
 	return ln;
     }
     
@@ -258,7 +286,7 @@ public class nodo {
 	    // Se obtienen los nodos vecinos.
 	    nodos_vecinos = Vecinos(maquinas);
 	 
-	   // crear socket
+	    /* Crear socket */
 	    try {
 		serversock = new ServerSocket(puerto, 10);
 	    }
@@ -271,19 +299,21 @@ public class nodo {
 	    socket = serversock.accept();
 	    // nombre de cliente
 	    cliente = socket.getInetAddress().getHostName();
-	    
 	    System.out.println("Conexion establecida");
+	   
 	    out = new ObjectOutputStream(socket.getOutputStream());
 	    out.flush();
 	    in = new ObjectInputStream(socket.getInputStream());
+	    /*Se envia un msj de exito para indicar que se hizo conexion con el servidor correcto */
 	    enviar(out,"<exito/>");
 
 	    do{
 		mensaje = (String)recibir(in);
+		/* La comunicacion se termina cuando se recibe el mensaje bye */
 		if (mensaje.equals("<bye/>"))
 		    break;
 		System.out.println(mensaje);
-		
+		/* Se verifica que resultado de obtiene de la llamada verificar_comando */
 		switch(verificar_comando(mensaje,traza2)) {
 		case -1:
 		    enviar(out,"Comando invalido");
@@ -297,7 +327,7 @@ public class nodo {
 		    break;
 		}
 	    } while(!mensaje.equals("<bye/>"));
-
+	    /*Se cierran los descriptores abiertos */
 	    in.close();
 	    out.close();
 	    traza2.close();
@@ -325,6 +355,7 @@ public class nodo {
 	System.out.println("Uso: nodo -p <puerto> -f <maquinas> -l <archivoTrazas> -d <directorio>");
 	System.exit(-1);
     }
+
     /** 
      * Obtiene el ip publico de la maquina donde se esta ejecutando el programa
      * @return Ip Publico
@@ -352,6 +383,57 @@ public class nodo {
 	    e.printStackTrace();
 	}
 	return "conexion nula";
+    }
+
+    public Vector<String> alcanzables (Vector<String> visitados){
+	Socket sock = null;
+	ObjectOutputStream salida = null;
+	ObjectInputStream entrada = null;
+
+	/* marcar como visitado */
+	visitados.add(mi_ip());
+
+	/* busqueda remota */
+	try {
+	    for (int i = 0; i < nodos_vecinos.size(); i++) {
+		if (!visitados.contains(nodos_vecinos.elementAt(i))){
+		    try{
+			sock = new Socket(nodos_vecinos.elementAt(i),puerto);
+		    }
+		    catch (Exception e){
+			System.err.println("No se pudo establecer conexion con: " + nodos_vecinos.elementAt(i));
+			// evitar que sea visitado
+			visitados.add(nodos_vecinos.elementAt(i));
+			// continuo con las demas conexiones
+			continue;
+		    }
+		    salida = new ObjectOutputStream(sock.getOutputStream());
+		    entrada = new ObjectInputStream(sock.getInputStream());
+		    System.out.println("A: "+recibir(entrada));
+		    /* Se envia un comando B que indica que la comunicacion ahora es llevada a cabo entre nodos*/
+		    enviar(salida,"R");
+		    enviar(salida,visitados);
+
+		    visitados = (Vector <String>)recibir(entrada);
+		    /* Se corta la comunicacion con los nodos que ya se visitaron*/
+		    enviar(salida,"<bye/>");
+		    /*Se cierran los descriptores correspondientes*/
+		    salida.close();
+		    entrada.close();
+		    sock.close();
+		}
+	    }
+	  
+	}
+	catch (Exception e){
+	    System.err.println("here: " + e.getMessage());
+	    e.printStackTrace();
+	} finally {
+	    /* Se envia el resultado obtenido sobre las fotos */
+	    enviar(out,visitados);
+	    /* Se devuelve el vector de visitados */
+	    return visitados;
+	} 
     }
 
     /** 
@@ -382,20 +464,29 @@ public class nodo {
 	try {
 	    for (int i = 0; i < nodos_vecinos.size(); i++) {
 		if (!visitados.contains(nodos_vecinos.elementAt(i))){
-		    sock = new Socket(nodos_vecinos.elementAt(i),puerto);
+		    try{
+			sock = new Socket(nodos_vecinos.elementAt(i),puerto);
+		    }
+		    catch (Exception e){
+			System.err.println("No se pudo establecer conexion con: " + nodos_vecinos.elementAt(i));
+			// evitar que sea visitado
+			visitados.add(nodos_vecinos.elementAt(i));
+			// continuo con las demas conexiones
+			continue;
+		    }
 		    salida = new ObjectOutputStream(sock.getOutputStream());
 		    entrada = new ObjectInputStream(sock.getInputStream());
-		    
-		    visitados.add(nodos_vecinos.elementAt(i));		    
-
-		    recibir(entrada);
-		    
+		    System.out.println("A: "+recibir(entrada));
+		    /* Se envia un comando B que indica que la comunicacion ahora es llevada a cabo entre nodos*/
 		    enviar(salida,"B " + busqueda);
 		    enviar(salida,visitados);
 		    
+		    /* Se obtiene el resultado de los demas nodos y se concatena con el resultado actual */
 		    resultado = resultado + (String)recibir(entrada);
-		    visitados = (Vector)recibir(entrada);
+		    visitados = (Vector <String>)recibir(entrada);
+		    /* Se corta la comunicacion con los nodos que ya se visitaron*/
 		    enviar(salida,"<bye/>");
+		    /*Se cierran los descriptores correspondientes*/
 		    salida.close();
 		    entrada.close();
 		    sock.close();
@@ -407,10 +498,13 @@ public class nodo {
 	    System.err.println("here: " + e.getMessage());
 	    e.printStackTrace();
 	} finally {
+	    /* Se envia el resultado obtenido sobre las fotos */
 	    enviar(out,resultado);
+	    /* Se devuelve el vector de visitados */
 	    return visitados;
 	} 
     }
+
 
     
     /** 
@@ -547,7 +641,7 @@ public class nodo {
     }
 
     public static void main(String args[]) throws Exception {
-int puerto = 0;
+	int puerto = 0;
 	int argc = args.length;
 	String maquinas = null;
 	String traza = null;
@@ -583,12 +677,8 @@ int puerto = 0;
 	    }    
 	    else uso();
 	}
-	//maquinas = dir_Act + "/"+maquinas;
-	
+		
 	if (!(check[0] && check[1] && check[2] && check[3])) uso();
-	//System.out.println("m"+ maquinas+ "\n traza " + traza);
-	// Fin revision de parametros de llamada
-	
 	nodo servidor = new nodo(puerto,directorio);
 	
 

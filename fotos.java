@@ -2,6 +2,11 @@ import java.io.*;
 import java.net.*;
 
 
+/**
+ * Clase para representar el cliente que solicita las fotos
+ * @author Carlos Alvarez y Marion CArambula.
+ */
+
 public class fotos {
 
     /** Socket a traves de cual se 
@@ -74,7 +79,6 @@ public class fotos {
 		    /* Se obtiene el comando a ejecutar */
 		    br = new BufferedReader(new InputStreamReader(System.in));
 		    mensaje = br.readLine();
-		    System.out.println("XXX");
 		    /* Se verifica comando de salida */
 		    if (mensaje.equalsIgnoreCase("q")) {
 			mensaje = "<bye/>";
@@ -88,7 +92,9 @@ public class fotos {
 		    }
 		    else {
 			sendMessage(mensaje);
-			System.out.println((String)entrada.readObject());
+			String s = entrada.readObject());
+		    
+			System.out.println(s);
 		    }
 		}
 		catch (ConnectException c) {
