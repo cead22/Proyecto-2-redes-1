@@ -3,12 +3,13 @@ import java.net.*;
 import java.util.*;
 import java.util.regex.*;
 import nanoxml.*;
+import java.rmi.*;
 
 /**
  * Clase para representar los nodos conectados a la red.
  * @author Carlos Alvarez y Marion CArambula.
  */
-public class nodo {
+public class nodo extends java.rmi.server.UnicastRemoteObject implements InterfazRemota {
     /** Socket por el cual se escuchan
      * peticiones de conexion */
     private ServerSocket serversock;
@@ -27,19 +28,19 @@ public class nodo {
     private String mensaje;
     /** Puerto logico por el cual 
      * se establece la comunicacion */
-    private int puerto;
+    private static int puerto;
     /** directorio donde se encuentran
      * las fotos */
-    String directorio;
+    private static String directorio;
     /** computadores alcanzables desde este */
-    Vector<String> nodos_vecinos;
+    private static Vector<String> nodos_vecinos;
 
    /** 
     * Crea un nodo a partir de un puerto y un directorio.
     * @param p puerto a traves el cual se hara la conexion.
     * @param dir directorio donde.
     */
-    public nodo(int p, String dir){
+    public nodo(int p, String dir) throws RemoteException {
 	directorio = dir;
 	puerto = p;
 	socket = null;
@@ -53,7 +54,7 @@ public class nodo {
      * @param mensaje mensaje a enviar.
      * @throws IOException
      */
-    private void enviar (ObjectOutputStream out, Object mensaje){
+    public static void enviar (ObjectOutputStream out, Object mensaje){
 	try{
 	    out.writeObject(mensaje);
 	    out.flush();
@@ -68,10 +69,14 @@ public class nodo {
      * @param Canal de entrada del mensaje.
      * @throws IOException
      */
-    private Object recibir (ObjectInputStream in){
+    public static Object recibir (ObjectInputStream in){
 	Object o = null;
 	try{
 	    o = in.readObject();
+	}
+	catch(EOFException eo){
+	    System.out.println("Se ha perdido la conexion con el cliente\n");
+	    return o;
 	}
 	catch(Exception e){
 	    e.printStackTrace();
@@ -103,7 +108,13 @@ public class nodo {
 	String aux[];
 	String servidor;
 	String archivo;
-
+	MetodosRemotos mr = null;
+	try {
+	   mr  = new MetodosRemotos(out,in,directorio,nodos_vecinos,puerto);
+	}
+	catch (Exception e) {
+	    e.printStackTrace();
+	}
 	/* comunicacion entre fotos - nodo */
 	/* Buscar foto(s) */
 	if (cmd[0].equalsIgnoreCase("C") && cmd.length == 3){
@@ -118,7 +129,7 @@ public class nodo {
 		    System.err.println("Error al escribir en la traza");
 		}
 		/* Busqueda en los demas nodos alcanzables */
-		dfs_distribuido(cmd[1] + " " + cmd[2], new Vector<String>());
+		mr.dfs_distribuido(cmd[1] + " " + cmd[2], new Vector<String>());
 		return 0;
 	    }
 		/* Comando invalido */
@@ -141,19 +152,19 @@ public class nodo {
 	    
 	    try {
 		enviar_archivo(archivo);
-		traza.write("El archivo solicitado por "+ socket.getInetAddress().getHostName() +"se envio correctamente");
-		
+		traza.write("El archivo solicitado por "+ socket.getInetAddress().getHostName() +" se envio correctamente\n");
+		return 0;
 	    }
 	    catch(Exception e) {
 		try{
-		    traza.write("El archivo solicitado por "+ socket.getInetAddress().getHostName() +"no pudo ser enviado correctamente");
+		    traza.write("El archivo solicitado por "+ socket.getInetAddress().getHostName() +" no pudo ser enviado correctamente\n");
 		}
 		catch(Exception e1){
-		    System.err.println("Error al escribir en traza");
+		    System.err.println("Error al escribir en traza\n");
 		}
 	    }
 	    /* Comando invalido*/
-	    return 0;
+	    return -1;
 	}
 	/* obterner numero de vecinos */
 	else if (cmd[0].equalsIgnoreCase("A") && cmd.length == 1){	
@@ -174,8 +185,7 @@ public class nodo {
 	    try{
                 traza.write("Solicitud para cerrar conexion recibida desde " + socket.getInetAddress().getHostName()+"\n");
                 traza.flush();
-                System.out.println("error");
-            
+             
 		Vector<String> alc = null;
 		alc = (Vector<String>)recibir(in);
 		alc  = alcanzables(alc);
@@ -211,7 +221,7 @@ public class nodo {
 	    catch (Exception e) {
 		System.out.println(e.getMessage());
 	    }
-	    visitados = dfs_distribuido(cmd[1] + " " + cmd[2],visitados);
+	    visitados = mr.dfs_distribuido(cmd[1] + " " + cmd[2],visitados);
 	    enviar(out,visitados);
 	    return 0;
 	}
@@ -282,7 +292,7 @@ public class nodo {
 	    BufferedWriter traza2 = new BufferedWriter(new FileWriter(log,true));
 	    
 	    // Se obtienen los nodos vecinos.
-	    nodos_vecinos = Vecinos(maquinas);
+	    //nodos_vecinos = Vecinos(maquinas);
 	 
 	    /* Crear socket */
 	    try {
@@ -302,27 +312,33 @@ public class nodo {
 	    out = new ObjectOutputStream(socket.getOutputStream());
 	    out.flush();
 	    in = new ObjectInputStream(socket.getInputStream());
-	    /*Se envia un msj de exito para indicar que se hizo conexion con el servidor correcto */
+	    /* Se envia un msj de exito para indicar que se hizo conexion con el servidor correcto */
 	    enviar(out,"<exito/>");
 
 	    do{
 		mensaje = (String)recibir(in);
-		/* La comunicacion se termina cuando se recibe el mensaje bye */
-		if (mensaje.equals("<bye/>"))
+		if (mensaje == null){
 		    break;
-		System.out.println(mensaje);
-		/* Se verifica que resultado de obtiene de la llamada verificar_comando */
-		switch(verificar_comando(mensaje,traza2)) {
-		case -1:
-		    enviar(out,"Comando invalido");
-		    mensaje = ""; // para evitar que coincida con bye
-		    break;
-		case 1:
-		    mensaje = "<bye/>"; // para que salga el servidor
-		    enviar(out,mensaje); // para que salga el cliente
-		    break;
-		default:
-		    break;
+		}
+		else{
+		    /* La comunicacion se termina cuando se recibe el mensaje bye */
+		    if (mensaje.equals("<bye/>"))
+			break;
+		    if (mensaje.equals("<recibido/>"))
+			continue;
+		    /* Se verifica que resultado de obtiene de la llamada verificar_comando */
+		    switch(verificar_comando(mensaje,traza2)) {
+		    case -1:
+			enviar(out,"Comando invalido");
+			mensaje = ""; // para evitar que coincida con bye
+			break;
+		    case 1:
+			mensaje = "<bye/>"; // para que salga el servidor
+			enviar(out,mensaje); // para que salga el cliente
+			break;
+		    default:
+			break;
+		    }
 		}
 	    } while(!mensaje.equals("<bye/>"));
 	    /*Se cierran los descriptores abiertos */
@@ -359,7 +375,7 @@ public class nodo {
      * @return Ip Publico
      * @throws  Exception
      */
-    private String mi_ip () {
+    public static String mi_ip () {
 	Enumeration e1;
 	Enumeration e2;
 	NetworkInterface ni;
@@ -399,7 +415,7 @@ public class nodo {
 			sock = new Socket(nodos_vecinos.elementAt(i),puerto);
 		    }
 		    catch (Exception e){
-			System.err.println("No se pudo establecer conexion con: " + nodos_vecinos.elementAt(i));
+			System.err.println("No se pudo establecer conexion con: " + nodos_vecinos.elementAt(i) + " se continua con otro vecino \n");
 			// evitar que sea visitado
 			visitados.add(nodos_vecinos.elementAt(i));
 			// continuo con las demas conexiones
@@ -424,7 +440,7 @@ public class nodo {
 	  
 	}
 	catch (Exception e){
-	    System.err.println("here: " + e.getMessage());
+	    System.err.println(e.getMessage());
 	    e.printStackTrace();
 	} finally {
 	    /* Se envia el resultado obtenido sobre las fotos */
@@ -439,68 +455,41 @@ public class nodo {
      * @param busqueda Indica que tipo de busqueda se esta realizado: por titulo o por palabras claves.
      * @param visitados Representa el vector de nodos que ya fueron visitados previamente.
      */
-    public Vector<String> dfs_distribuido (String busqueda, Vector<String> visitados){
+
+    public SalidaDFS dfs_distribuido (String busqueda, Vector<String> visitados) throws RemoteException {
 	String resultado = "";
 	File archivo = new File(directorio);
 	String[] archivos_xml = archivo.list(new explorador(".xml"));
-	Socket sock = null;
-	ObjectOutputStream salida = null;
-	ObjectInputStream entrada = null;
+	//Socket sock = null;
+	//ObjectOutputStream salida = null;
+	//ObjectInputStream entrada = null;
 	String foto;
 	
-	/* busqueda local */
+	// busqueda local //
 	for (int i = 0; i < archivos_xml.length; i++) {
 	    if (!(foto = match(directorio + "/" +archivos_xml[i], busqueda)).equals("<no/>")){
 		resultado = resultado + "\n===\n+ Archivo: " + archivos_xml[i].substring(0,archivos_xml[i].length()-4) + "\n" + foto + "\n";
 	    }
+	 
 	}
 
-	/* marcar como visitado */
+	// marcar como visitado //
 	visitados.add(mi_ip());
 
-	/* busqueda remota */
+	// busqueda remota //
 	try {
 	    for (int i = 0; i < nodos_vecinos.size(); i++) {
 		if (!visitados.contains(nodos_vecinos.elementAt(i))){
-		    try{
-			sock = new Socket(nodos_vecinos.elementAt(i),puerto);
-		    }
-		    catch (Exception e){
-			System.err.println("No se pudo establecer conexion con: " + nodos_vecinos.elementAt(i));
-			// evitar que sea visitado
-			visitados.add(nodos_vecinos.elementAt(i));
-			// continuo con las demas conexiones
-			continue;
-		    }
-		    salida = new ObjectOutputStream(sock.getOutputStream());
-		    entrada = new ObjectInputStream(sock.getInputStream());
-		    System.out.println("A: "+recibir(entrada));
-		    /* Se envia un comando B que indica que la comunicacion ahora es llevada a cabo entre nodos*/
-		    enviar(salida,"B " + busqueda);
-		    enviar(salida,visitados);
-		    
-		    /* Se obtiene el resultado de los demas nodos y se concatena con el resultado actual */
-		    resultado = resultado + (String)recibir(entrada);
-		    visitados = (Vector <String>)recibir(entrada);
-		    /* Se corta la comunicacion con los nodos que ya se visitaron*/
-		    enviar(salida,"<bye/>");
-		    /*Se cierran los descriptores correspondientes*/
-		    salida.close();
-		    entrada.close();
-		    sock.close();
+		    resultado = resultado + "\n" + nodos_vecinos.elementAt(i);
 		}
 	    }
 	  
 	}
 	catch (Exception e){
-	    System.err.println("here: " + e.getMessage());
+	    System.err.println(e.getMessage());
 	    e.printStackTrace();
-	} finally {
-	    /* Se envia el resultado obtenido sobre las fotos */
-	    enviar(out,resultado);
-	    /* Se devuelve el vector de visitados */
-	    return visitados;
 	} 
+	return new SalidaDFS(resultado,visitados);
     }
 
 
@@ -512,7 +501,7 @@ public class nodo {
      * @return No en caso que no se haya conseguido el string en el archivo
      * en cualquier otro caso un string con ciertas caracteristicas.
      */
-    public String match (String archivo, String busqueda) {
+    public static String match (String archivo, String busqueda) {
 
 	XMLElement xml = new XMLElement();
 	FileReader reader = null;
@@ -607,15 +596,12 @@ public class nodo {
 
 	    bi.read(bytes_foto,0,bytes_foto.length);
 	    tamano = entero_a_arreglo(tam);
-	    System.out.println("sending");	    
 	    salida.write(tamano,0,4);
 	    salida.flush();
-
-
 	    salida.write(bytes_foto,0,bytes_foto.length);
 	    salida.flush();
 	   
-	    System.out.println("done sending");
+	    
 	}
 	catch (FileNotFoundException f) {
 	    try {
@@ -639,11 +625,11 @@ public class nodo {
     }
 
     public static void main(String args[]) throws Exception {
-	int puerto = 0;
+	int port = 0;
 	int argc = args.length;
 	String maquinas = null;
 	String traza = null;
-	String directorio = null;
+	String dir = null;
 	boolean check[] = {false,false,false,false};
 	String dir_Act = System.getProperty("user.dir");
 	
@@ -677,12 +663,22 @@ public class nodo {
 	}
 		
 	if (!(check[0] && check[1] && check[2] && check[3])) uso();
-	nodo servidor = new nodo(puerto,directorio);
-	
+	//nodo servidor = new nodo(puerto,directorio);
+	nodos_vecinos = Vecinos(maquinas);
+	//this.puerto = puerto;
+	//this.directorio = directorio;
 
+	InterfazRemota ir = new nodo(puerto,directorio);
+	System.err.println("//" + java.net.InetAddress.getLocalHost().getHostAddress() +
+			   ":" + puerto + "/fotop2p");
+	Naming.rebind("//" + java.net.InetAddress.getLocalHost().getHostAddress() +
+                             ":" + puerto + "/fotop2p", ir);
+	
+	/*
 	while(true){
 	    servidor.run(puerto, maquinas, traza);
 	}
+	*/
     }
 }
 

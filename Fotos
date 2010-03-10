@@ -1,6 +1,6 @@
 #!/bin/bash
  
-export CLASSPATH=nanoxml.jar:.
+export CLASSPATH=nanoxml-lite-2.2.3.jar:.
 
 export PATH=$PATH:/usr/bin
 

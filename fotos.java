@@ -1,6 +1,7 @@
 import java.io.*;
 import java.net.*;
 import java.util.*;
+import java.rmi.*;
 
 
 /**
@@ -99,6 +100,7 @@ public class fotos {
 		    }
 		    else {
 			sendMessage(mensaje);
+			//System.out.println("aqui" +mensaje);
 			String s = (String)entrada.readObject();
 			if (s.equals("<alc/>")) {
 			    System.out.println("Alcanzables: " + ((Vector)entrada.readObject()).size());
@@ -108,7 +110,7 @@ public class fotos {
 			}
 		    }
 		}
-		catch (ConnectException c) {
+		catch (java.net.ConnectException c) {
 		    System.err.println("No se pudo establecer conexion con " + maquina);
 		}
 		catch(Exception e){
@@ -120,7 +122,7 @@ public class fotos {
 	    salida.close();
 	    SocketCliente.close();
 	}
-	catch(UnknownHostException unknownHost){
+	catch(java.net.UnknownHostException unknownHost){
 	    System.err.println("Nombre de servidor invalido.");
 	    System.exit(-1);
 	}
@@ -162,61 +164,98 @@ public class fotos {
 	BufferedOutputStream bos = new BufferedOutputStream(fos);
 	byte [] tamano = new byte[4]; 
 	byte [] mybytearray;
-
-	System.out.println("Intentando recibir foto...");
+	String dir_cliente = SocketCliente.getInetAddress().getHostAddress();
+	String dir_nodo = InetAddress.getByName(nodo).getHostAddress();
 
 	/* Se requiere nueva conexion */
-	if (!nodo.equals("localhost") && !nodo.equals("127.0.0.1")) {
+	if (!dir_cliente.equals(dir_nodo)){
 	    sock = new Socket(nodo,puerto);
 	    is = new ObjectInputStream(sock.getInputStream());
 	    os = new ObjectOutputStream(sock.getOutputStream());
+	    os.writeObject(mensaje);
+	    os.flush();
+	    System.out.println((String)is.readObject());	
+	    is = new ObjectInputStream(sock.getInputStream());
+	    current = 0;
+	    bytesRead = 0;
+	    while(bytesRead > -1 && current < 4){
+		bytesRead = is.read(tamano, current, 4 - current);
+		if(bytesRead >= 0) current += bytesRead;
+	    } 
+	    
+	    mybytearray = new byte [byteArrayToInt(tamano)];
+	    
+	    if (mybytearray.length == 0) {
+		System.out.println("Foto no encontrada");
+		os.writeObject("<bye/>");
+		os.flush();
+		return;
+	    }
+	    current = 0;
+	    bytesRead = 0;
+	    while(bytesRead > -1 && current < byteArrayToInt(tamano))
+		{
+		    bytesRead =	is.read(mybytearray, current, (mybytearray.length-current));
+		    
+		    if(bytesRead >= 0) current += bytesRead;
+		}
+	    bos.write(mybytearray, 0 , current);
+	    bos.flush();
+	    bos.close();
+	    
+	    os.writeObject("<bye/>");
+	    os.flush();
+	    System.out.println("Foto Recibida");
+	    try{
+		os.close();
+		is.close();
+		sock.close();
+	    }
+	    catch (IOException io){
+		System.err.println("Error al cerrar stream de E/S y/o Socket");
+	    }
+	  
 	}
 	/* No se requiere hacer nueva conexion */
 	else {
 	    is = entrada;
 	    os = salida;
-	}
-	os.writeObject(mensaje);
-	os.flush();
-
-	if (!nodo.equals("localhost") && !nodo.equals("127.0.0.1")) {
-	    System.out.println((String)is.readObject());	
-	    is = new ObjectInputStream(sock.getInputStream());
-	}
-	else {
-	    is = new ObjectInputStream(SocketCliente.getInputStream());
-	}
-
-	current = 0;
-	bytesRead = 0;
-	while(bytesRead > -1 && current < 4){
-	    bytesRead = is.read(tamano, current, 4 - current);
-	    if(bytesRead >= 0) current += bytesRead;
-	} 
-	System.out.println(byteArrayToInt(tamano));
-	mybytearray = new byte [byteArrayToInt(tamano)];
-	
-	if (mybytearray.length == 0) {
-	    System.out.println("Foto no encontrada");
-	    os.writeObject("<bye/>");
+	    os.writeObject(mensaje);
 	    os.flush();
-	    return;
+	    is = new ObjectInputStream(SocketCliente.getInputStream());
+	    current = 0;
+	    bytesRead = 0;
+	    while(bytesRead > -1 && current < 4){
+		bytesRead = is.read(tamano, current, 4 - current);
+		if(bytesRead >= 0) current += bytesRead;
+	    } 
+	    
+	    mybytearray = new byte [byteArrayToInt(tamano)];
+	    
+	    if (mybytearray.length == 0) {
+		System.out.println("Foto no encontrada");
+		os.writeObject("<recibido/>");
+		os.flush();
+		return;
+	    }
+	    current = 0;
+	    bytesRead = 0;
+	    while(bytesRead > -1 && current < byteArrayToInt(tamano))
+		{
+		    bytesRead =	is.read(mybytearray, current, (mybytearray.length-current));
+		    
+		    if(bytesRead >= 0) current += bytesRead;
+		}
+	    bos.write(mybytearray, 0 , current);
+	    bos.flush();
+	    bos.close();
+	    
+	    os.writeObject("<recibido/>");
+	    os.flush();
+	    System.out.println("Foto Recibida");
+	    
 	}
-	current = 0;
-	bytesRead = 0;
-	while(bytesRead > -1 && current < byteArrayToInt(tamano))
-	 {
-	    bytesRead =	is.read(mybytearray, current, (mybytearray.length-current));
-
-	    if(bytesRead >= 0) current += bytesRead;
-	}
-	bos.write(mybytearray, 0 , current);
-	bos.flush();
-	bos.close();
-
-	os.writeObject("<bye/>");
-	os.flush();
-	System.out.println("Foto Recibida");
+	
     }
 
 
@@ -236,6 +275,7 @@ public class fotos {
 	}
     }
 
+    
     /** Revisa los parametros de la llamada y lee de la consola
      * los comandos a enviar a la aplicacion nodos
      */
@@ -268,8 +308,30 @@ public class fotos {
 	    System.out.println("Uso: edolab -f <maquinas> -p <puertoRemote>\n");
 	    System.exit(-1);
 	}
-	fotos cliente = new fotos(puerto,maq);
-	cliente.run();
+
+	// prueba rmi
+
+	try {
+	    System.out.println("//" + maq + ":" + puerto + "/fotop2p");
+	    InterfazRemota ir = (InterfazRemota)java.rmi.Naming.lookup("//" + maq + ":" + puerto + "/fotop2p");
+	    System.err.println(ir);
+	    SalidaDFS sal = ir.dfs_distribuido("-t y",new Vector<String>());
+	    System.out.println(sal.resultado);
+	}
+	catch (NotBoundException e) {
+	    System.err.println("No existe el servicio solicitado en " + maq + ":" + puerto);
+	}
+	catch (MalformedURLException m) {
+	    System.err.println("URL incorrecta");
+	}
+	catch (RemoteException r) {
+	    System.err.println("No se pudo establecer conexion con el servidor");
+	    r.printStackTrace();
+	}
+	// fin prueba 
+
+	//fotos cliente = new fotos(puerto,maq);
+	//cliente.run();
 	
     }
 }
